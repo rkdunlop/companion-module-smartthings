@@ -20,6 +20,24 @@ export interface SmartThingsCommand {
 	arguments?: unknown[]
 }
 
+export interface SmartThingsLocation {
+	locationId: string
+	name: string
+	countryCode?: string
+	latitude?: number
+	longitude?: number
+	regionRadius?: number
+	temperatureScale?: string
+	timeZoneId?: string
+	locale?: string
+	parent?: Array<{
+		type: string
+		id: string
+	}>
+	createdDate?: string
+	modifiedDate?: string
+}
+
 export class SmartThingsApi {
 	private readonly baseUrl = 'https://api.smartthings.com/v1'
 
@@ -49,6 +67,15 @@ export class SmartThingsApi {
 		return (await response.json()) as T
 	}
 
+	public async getLocations(): Promise<SmartThingsLocation[]> {
+		const response = await this.request<{
+			items: SmartThingsLocation[]
+			_links?: unknown
+		}>('/locations')
+
+		return response.items
+	}
+
 	public async getDevices(): Promise<SmartThingsDevice[]> {
 		const response = await this.request<{
 			items: SmartThingsDevice[]
@@ -56,6 +83,13 @@ export class SmartThingsApi {
 		}>('/devices')
 
 		return response.items
+	}
+
+	public async getDevicesByLocation(locationId: string): Promise<SmartThingsDevice[]> {
+		return this.request<{
+			items: SmartThingsDevice[]
+			_links?: unknown
+		}>(`/locations/${encodeURIComponent(locationId)}/devices`).then((response) => response.items)
 	}
 
 	public async getDeviceStatus(deviceId: string): Promise<unknown> {

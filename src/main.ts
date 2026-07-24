@@ -1,6 +1,6 @@
 import { InstanceBase, InstanceStatus, type InstanceTypes } from '@companion-module/base'
 
-import { SmartThingsApi, type SmartThingsDevice } from './api/api.js'
+import { SmartThingsApi, type SmartThingsDevice, type SmartThingsLocation } from './api/api.js'
 import type { ModuleConfig } from './config.js'
 import { GetConfigFields } from './config.js'
 import { UpdateActions } from './actions.js'
@@ -24,10 +24,12 @@ class SmartThingsInstance extends InstanceBase<ModuleSchema> {
 	public config: ModuleConfig = {
 		token: '',
 		pollInterval: 5000,
+		locationId: '',
 	}
 
 	public api?: SmartThingsApi
 	public devices: SmartThingsDevice[] = []
+	public locations: SmartThingsLocation[] = []
 
 	public deviceStatus: Map<string, unknown> = new Map()
 
@@ -50,7 +52,13 @@ class SmartThingsInstance extends InstanceBase<ModuleSchema> {
 
 		try {
 			this.updateStatus(InstanceStatus.Connecting)
-			this.devices = await this.api.getDevices()
+			//Fetch all locations
+			this.locations = await this.api.getLocations()
+			if (config.locationId) {
+				this.devices = await this.api.getDevicesByLocation(config.locationId)
+			} else {
+				this.devices = await this.api.getDevices()
+			}
 
 			this.initActions()
 			this.initFeedbacks()
@@ -70,7 +78,15 @@ class SmartThingsInstance extends InstanceBase<ModuleSchema> {
 	}
 
 	public getConfigFields(): ReturnType<typeof GetConfigFields> {
-		return GetConfigFields()
+		const fields = GetConfigFields()
+		const locationField = fields.find((field) => field.id === 'locationId')
+		if (locationField && this.locations.length > 0 && 'choices' in locationField) {
+			locationField.choices = this.locations.map((location) => ({
+				id: location.locationId,
+				label: location.name,
+			}))
+		}
+		return fields
 	}
 
 	public async destroy(): Promise<void> {
