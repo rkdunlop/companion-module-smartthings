@@ -29,6 +29,8 @@ class SmartThingsInstance extends InstanceBase<ModuleSchema> {
 	public api?: SmartThingsApi
 	public devices: SmartThingsDevice[] = []
 
+	public deviceStatus: Map<string, unknown> = new Map()
+
 	private pollTimer?: NodeJS.Timeout
 
 	public async init(config: ModuleConfig, _isFirstInit: boolean, _secrets: undefined): Promise<void> {
@@ -92,6 +94,47 @@ class SmartThingsInstance extends InstanceBase<ModuleSchema> {
 
 	private async pollStatus(): Promise<void> {
 		// Populate device-state cache here.
+		if (!this.api) {
+			return
+		}
+
+		for (const device of this.devices) {
+			await this.api.getDeviceStatus(device.deviceId)
+		}
+	}
+
+	public async refreshDeviceStatus(deviceId: string): Promise<void> {
+		if (!this.api) {
+			return
+		}
+		try {
+			const status = await this.api.getDeviceStatus(deviceId)
+			this.deviceStatus.set(deviceId, status)
+			this.checkFeedbacks('*')
+		} catch (error) {
+			const message = error instanceof Error ? error.message : String(error)
+			this.log('warn', `Failed to refresh device status for ${deviceId}: ${message}`)
+		}
+	}
+	public getAttribute(deviceId: string, capability: string, attribute: string, component = 'main'): unknown {
+		const status = this.deviceStatus.get(deviceId) as
+			| {
+					components?: Record<
+						string,
+						Record<
+							string,
+							Record<
+								string,
+								{
+									value?: unknown
+								}
+							>
+						>
+					>
+			  }
+			| undefined
+
+		return status?.components?.[component]?.[capability]?.[attribute]?.value
 	}
 
 	public initActions(): void {

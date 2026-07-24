@@ -10,6 +10,12 @@ export type ActionsSchema = {
 }
 
 export function UpdateActions(self: SmartThingsInstance): void {
+	const deviceChoices = self.devices.map((device) => ({
+		id: device.deviceId,
+		// use label if available, otherwise fall back to deviceId
+		label: device.label || device.deviceId,
+	}))
+
 	self.setActionDefinitions({
 		sample_action: {
 			name: 'My First Action',
@@ -25,6 +31,22 @@ export function UpdateActions(self: SmartThingsInstance): void {
 			],
 			callback: async (event: CompanionActionEvent) => {
 				console.log('Hello world!', event.options.num)
+			},
+		},
+
+		switch_on: {
+			name: 'Switch On',
+			options: [
+				{
+					id: 'deviceId',
+					type: 'dropdown',
+					label: 'Device',
+					default: deviceChoices[0]?.id ?? '',
+					choices: deviceChoices,
+				},
+			],
+			callback: async (event: CompanionActionEvent) => {
+				console.log('Switching on', event.options.deviceId)
 			},
 		},
 	})
