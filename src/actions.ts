@@ -1,4 +1,5 @@
-import type ModuleInstance from './main.js'
+import type SmartThingsInstance from './main.js'
+import type { CompanionActionEvent } from '@companion-module/base'
 
 export type ActionsSchema = {
 	sample_action: {
@@ -8,7 +9,7 @@ export type ActionsSchema = {
 	}
 }
 
-export function UpdateActions(self: ModuleInstance): void {
+export function UpdateActions(self: SmartThingsInstance): void {
 	self.setActionDefinitions({
 		sample_action: {
 			name: 'My First Action',
@@ -22,7 +23,7 @@ export function UpdateActions(self: ModuleInstance): void {
 					max: 100,
 				},
 			],
-			callback: async (event) => {
+			callback: async (event: CompanionActionEvent) => {
 				console.log('Hello world!', event.options.num)
 			},
 		},

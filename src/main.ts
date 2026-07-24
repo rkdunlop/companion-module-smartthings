@@ -1,10 +1,16 @@
-import { InstanceBase, InstanceStatus, type SomeCompanionConfigField } from '@companion-module/base'
-import { GetConfigFields, type ModuleConfig } from './config.js'
-import { UpdateVariableDefinitions, type VariablesSchema } from './variables.js'
-import { UpgradeScripts } from './upgrades.js'
-import { UpdateActions, type ActionsSchema } from './actions.js'
-import { UpdateFeedbacks, type FeedbacksSchema } from './feedbacks.js'
+import { InstanceBase, InstanceStatus, type InstanceTypes } from '@companion-module/base'
+
+import { SmartThingsApi, type SmartThingsDevice } from './api/api.js'
+import type { ModuleConfig } from './config.js'
+import { GetConfigFields } from './config.js'
+import { UpdateActions } from './actions.js'
+import { UpdateFeedbacks } from './feedbacks.js'
+import { UpdateVariableDefinitions } from './variables.js'
 import { UpdatePresets } from './presets.js'
+import { UpgradeScripts } from './upgrades.js'
+import type { ActionsSchema } from './actions.js'
+import type { FeedbacksSchema } from './feedbacks.js'
+import type { VariablesSchema } from './variables.js'
 
 export type ModuleSchema = {
 	config: ModuleConfig
@@ -12,54 +18,98 @@ export type ModuleSchema = {
 	actions: ActionsSchema
 	feedbacks: FeedbacksSchema
 	variables: VariablesSchema
-}
+} & InstanceTypes
 
-export { UpgradeScripts }
-
-export default class ModuleInstance extends InstanceBase<ModuleSchema> {
-	config!: ModuleConfig // Setup in init()
-
-	constructor(internal: unknown) {
-		super(internal)
+class SmartThingsInstance extends InstanceBase<ModuleSchema> {
+	public config: ModuleConfig = {
+		token: '',
+		pollInterval: 5000,
 	}
 
-	async init(config: ModuleConfig): Promise<void> {
+	public api?: SmartThingsApi
+	public devices: SmartThingsDevice[] = []
+
+	private pollTimer?: NodeJS.Timeout
+
+	public async init(config: ModuleConfig, _isFirstInit: boolean, _secrets: undefined): Promise<void> {
+		await this.configUpdated(config, _secrets)
+	}
+
+	public async configUpdated(config: ModuleConfig, _secrets: undefined): Promise<void> {
 		this.config = config
+		this.stopPolling()
 
-		this.updateStatus(InstanceStatus.Ok)
+		if (!config.token) {
+			this.updateStatus(InstanceStatus.BadConfig, 'Token required')
+			return
+		}
 
-		this.updateActions() // export actions
-		this.updateFeedbacks() // export feedbacks
-		this.updatePresets() // export Presets
-		this.updateVariableDefinitions() // export variable definitions
+		this.api = new SmartThingsApi(config.token)
+
+		try {
+			this.updateStatus(InstanceStatus.Connecting)
+			this.devices = await this.api.getDevices()
+
+			this.initActions()
+			this.initFeedbacks()
+			this.initVariables()
+			this.initPresets()
+
+			await this.pollStatus()
+			this.startPolling()
+
+			this.updateStatus(InstanceStatus.Ok)
+		} catch (error) {
+			const message = error instanceof Error ? error.message : String(error)
+
+			this.log('error', message)
+			this.updateStatus(InstanceStatus.ConnectionFailure, message)
+		}
 	}
-	// When module gets deleted
-	async destroy(): Promise<void> {
-		this.log('debug', 'destroy')
-	}
 
-	async configUpdated(config: ModuleConfig): Promise<void> {
-		this.config = config
-	}
-
-	// Return config fields for web config
-	getConfigFields(): SomeCompanionConfigField[] {
+	public getConfigFields(): ReturnType<typeof GetConfigFields> {
 		return GetConfigFields()
 	}
 
-	updateActions(): void {
+	public async destroy(): Promise<void> {
+		this.stopPolling()
+	}
+
+	private startPolling(): void {
+		const interval = Math.max(1000, this.config.pollInterval || 5000)
+
+		this.pollTimer = setInterval(() => {
+			void this.pollStatus()
+		}, interval)
+	}
+
+	private stopPolling(): void {
+		if (this.pollTimer) {
+			clearInterval(this.pollTimer)
+			this.pollTimer = undefined
+		}
+	}
+
+	private async pollStatus(): Promise<void> {
+		// Populate device-state cache here.
+	}
+
+	public initActions(): void {
 		UpdateActions(this)
 	}
 
-	updateFeedbacks(): void {
+	public initFeedbacks(): void {
 		UpdateFeedbacks(this)
 	}
 
-	updatePresets(): void {
-		UpdatePresets(this)
-	}
-
-	updateVariableDefinitions(): void {
+	public initVariables(): void {
 		UpdateVariableDefinitions(this)
 	}
+
+	public initPresets(): void {
+		UpdatePresets(this)
+	}
 }
+
+export default SmartThingsInstance
+export { UpgradeScripts }

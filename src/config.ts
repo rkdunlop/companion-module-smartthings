@@ -1,27 +1,28 @@
-import { Regex, type SomeCompanionConfigField } from '@companion-module/base'
+import { type SomeCompanionConfigField } from '@companion-module/base'
 
-export type ModuleConfig = {
-	host: string
-	port: number
+export interface ModuleConfig {
+	token: string
+	pollInterval: number
+	[x: string]: string | number | boolean
 }
 
 export function GetConfigFields(): SomeCompanionConfigField[] {
 	return [
 		{
 			type: 'textinput',
-			id: 'host',
-			label: 'Target IP',
-			width: 8,
-			regex: Regex.IP,
+			id: 'token',
+			label: 'SmartThings Access Token',
+			width: 12,
+			default: '',
 		},
 		{
 			type: 'number',
-			id: 'port',
-			label: 'Target Port',
-			width: 4,
-			min: 1,
-			max: 65535,
-			default: 8000,
+			id: 'pollInterval',
+			label: 'Status polling interval',
+			width: 6,
+			min: 1000,
+			max: 60000,
+			default: 5000,
 		},
 	]
 }

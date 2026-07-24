@@ -1,4 +1,5 @@
-import type ModuleInstance from './main.js'
+import type SmartThingsInstance from './main.js'
+import type { CompanionFeedbackBooleanEvent, CompanionFeedbackContext } from '@companion-module/base'
 
 export type FeedbacksSchema = {
 	sample_feedback: {
@@ -9,7 +10,7 @@ export type FeedbacksSchema = {
 	}
 }
 
-export function UpdateFeedbacks(self: ModuleInstance): void {
+export function UpdateFeedbacks(self: SmartThingsInstance): void {
 	self.setFeedbackDefinitions({
 		sample_feedback: {
 			name: 'Example Feedback',
@@ -26,10 +27,10 @@ export function UpdateFeedbacks(self: ModuleInstance): void {
 					default: 5,
 					min: 0,
 					max: 10,
-					clampValues: true, // If value is outside the min/max, clamp it to the min/max instead of rejecting the input
+					clampValues: true,
 				},
 			],
-			callback: (feedback) => {
+			callback: (feedback: CompanionFeedbackBooleanEvent<{ num: number }>, _context: CompanionFeedbackContext) => {
 				console.log('Hello world!', feedback.options.num)
 				if (feedback.options.num > 5) {
 					return true
@@ -38,5 +39,5 @@ export function UpdateFeedbacks(self: ModuleInstance): void {
 				}
 			},
 		},
-	})
+	} as any)
 }

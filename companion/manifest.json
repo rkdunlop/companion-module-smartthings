@@ -1,13 +1,13 @@
 {
 	"$schema": "../node_modules/@companion-module/base/assets/manifest.schema.json",
 	"type": "connection",
-	"id": "your-module-name",
-	"name": "your-module-name",
-	"shortname": "module-shortname",
+	"id": "smartthings-companion-module",
+	"name": "smartthings-companion-module",
+	"shortname": "smartthings",
 	"description": "A short one line description of your module",
 	"version": "0.0.0",
 	"license": "MIT",
-	"repository": "git+https://github.com/bitfocus/companion-module-your-module-name.git",
+	"repository": "git+https://github.com/bitfocus/companion-module-smartthings-companion-module.git",
 	"bugs": "https://github.com/bitfocus/companion-module-your-module-name/issues",
 	"maintainers": [
 		{
@@ -22,7 +22,7 @@
 		"entrypoint": "../dist/main.js"
 	},
 	"legacyIds": [],
-	"manufacturer": "Your company",
-	"products": ["Your product"],
+	"manufacturer": "Samsung",
+	"products": ["SmartThings"],
 	"keywords": []
 }
