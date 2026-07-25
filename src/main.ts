@@ -30,6 +30,7 @@ class SmartThingsInstance extends InstanceBase<ModuleSchema> {
 	public api?: SmartThingsApi
 	public devices: SmartThingsDevice[] = []
 	public locations: SmartThingsLocation[] = []
+	public capabilities = new Map()
 
 	public deviceStatus: Map<string, unknown> = new Map()
 
@@ -54,10 +55,24 @@ class SmartThingsInstance extends InstanceBase<ModuleSchema> {
 			this.updateStatus(InstanceStatus.Connecting)
 			//Fetch all locations
 			this.locations = await this.api.getLocations()
+
 			if (config.locationId) {
+				const selectedLocation = this.locations.find((location) => location.locationId === config.locationId)
+				if (!selectedLocation) {
+					throw new Error('Selected location is not available. Please choose a valid location.')
+				}
 				this.devices = await this.api.getDevicesByLocation(config.locationId)
 			} else {
 				this.devices = await this.api.getDevices()
+			}
+
+			//this.log('debug', JSON.stringify(this.devices[0], null, 2))
+			const firstDevice = this.devices[0]
+			const firstCapability = firstDevice?.components?.[0]?.capabilities?.[0]
+			if (firstCapability) {
+				const capabilityDefinition = await this.api.getCapability(firstCapability.id, firstCapability.version)
+				this.log('debug', JSON.stringify(capabilityDefinition, null, 2))
+				this.capabilities.set(firstCapability.id, capabilityDefinition)
 			}
 
 			this.initActions()
@@ -71,9 +86,10 @@ class SmartThingsInstance extends InstanceBase<ModuleSchema> {
 			this.updateStatus(InstanceStatus.Ok)
 		} catch (error) {
 			const message = error instanceof Error ? error.message : String(error)
+			const badConfig = message === 'Selected location is not available. Please choose a valid location.'
 
 			this.log('error', message)
-			this.updateStatus(InstanceStatus.ConnectionFailure, message)
+			this.updateStatus(badConfig ? InstanceStatus.BadConfig : InstanceStatus.ConnectionFailure, message)
 		}
 	}
 
@@ -115,7 +131,13 @@ class SmartThingsInstance extends InstanceBase<ModuleSchema> {
 		}
 
 		for (const device of this.devices) {
-			await this.api.getDeviceStatus(device.deviceId)
+			try {
+				const status = await this.api.getDeviceStatus(device.deviceId)
+				this.deviceStatus.set(device.deviceId, status)
+			} catch (error) {
+				const message = error instanceof Error ? error.message : String(error)
+				this.log('warn', `Failed to load status for device ${device.deviceId}: ${message}`)
+			}
 		}
 	}
 
