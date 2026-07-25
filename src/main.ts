@@ -74,9 +74,6 @@ export class SmartThingsInstance extends InstanceBase<ModuleSchema> {
 			}
 
 			await this.discoverCommands()
-			for (const command of this.discoveredCommands) {
-				this.log('debug', `${command.deviceLabel}: ${command.capabilityId}.${command.commandName}`)
-			}
 
 			this.initActions()
 			this.initFeedbacks()
@@ -206,7 +203,7 @@ export class SmartThingsInstance extends InstanceBase<ModuleSchema> {
 		this.log('info', `Discovered ${this.discoveredCommands.length} SmartThings commands`)
 	}
 
-	public getDiscoveredCommands(commandKey: string): SmartThingsDiscoveredCommand | undefined {
+	public getDiscoveredCommand(commandKey: string): SmartThingsDiscoveredCommand | undefined {
 		return this.discoveredCommands.find((command) => command.key === commandKey)
 	}
 
