@@ -1,53 +1,151 @@
-import type SmartThingsInstance from './main.js'
-import type { CompanionActionEvent } from '@companion-module/base'
+import type { CompanionActionDefinitions, CompanionActionEvent, DropdownChoice } from '@companion-module/base'
+
+import type { SmartThingsInstance } from './main.js'
 
 export type ActionsSchema = {
-	sample_action: {
+	execute_discovered_command: {
 		options: {
-			num: number
+			commandKey: string
+			argumentsJson: string
 		}
 	}
 }
 
+function describeArguments(
+	argumentsList: Array<{
+		name: string
+		optional?: boolean
+		schema?: {
+			type: string
+			minimum?: number
+			maximum?: number
+			enum?: unknown[]
+		}
+	}>,
+): string {
+	if (argumentsList.length === 0) {
+		return 'No arguments'
+	}
+
+	return argumentsList
+		.map((argument) => {
+			const type = argument.schema?.type ?? 'unknown'
+			const optional = argument.optional ? '?' : ''
+
+			let description = `${argument.name}${optional}: ${type}`
+
+			if (argument.schema?.minimum !== undefined || argument.schema?.maximum !== undefined) {
+				description += ` [${argument.schema.minimum ?? ''}-${argument.schema.maximum ?? ''}]`
+			}
+
+			if (argument.schema?.enum?.length) {
+				description += ` (${argument.schema.enum.join(', ')})`
+			}
+
+			return description
+		})
+		.join(', ')
+}
+
+function parseArguments(value: string, expectedCount: number): unknown[] {
+	const trimmed = value.trim()
+
+	if (!trimmed) {
+		if (expectedCount === 0) {
+			return []
+		}
+
+		throw new Error(`This command expects ${expectedCount} argument(s)`)
+	}
+
+	let parsed: unknown
+
+	try {
+		parsed = JSON.parse(trimmed)
+	} catch (error) {
+		const message = error instanceof Error ? error.message : String(error)
+
+		throw new Error(`Arguments are not valid JSON: ${message}`, { cause: error })
+	}
+
+	if (!Array.isArray(parsed)) {
+		throw new Error('Arguments must be a JSON array, such as [] or [50]')
+	}
+
+	return parsed
+}
+
 export function UpdateActions(self: SmartThingsInstance): void {
-	const deviceChoices = self.devices.map((device) => ({
-		id: device.deviceId,
-		// use label if available, otherwise fall back to deviceId
-		label: device.label || device.deviceId,
+	const commandChoices: DropdownChoice[] = self.discoveredCommands.map((command) => ({
+		id: command.key,
+		label:
+			`${command.deviceLabel} → ` +
+			`${command.componentId} → ` +
+			`${command.capabilityId}.${command.commandName} ` +
+			`[${describeArguments(command.arguments)}]`,
 	}))
 
-	self.setActionDefinitions({
-		sample_action: {
-			name: 'My First Action',
+	const actions: CompanionActionDefinitions<ActionsSchema> = {
+		execute_discovered_command: {
+			name: 'Execute SmartThings Command',
+			description: 'Execute a command discovered from a SmartThings device capability',
 			options: [
 				{
-					id: 'num',
-					type: 'number',
-					label: 'Test',
-					default: 5,
-					min: 0,
-					max: 100,
-				},
-			],
-			callback: async (event: CompanionActionEvent) => {
-				console.log('Hello world!', event.options.num)
-			},
-		},
-
-		switch_on: {
-			name: 'Switch On',
-			options: [
-				{
-					id: 'deviceId',
+					id: 'commandKey',
 					type: 'dropdown',
-					label: 'Device',
-					default: deviceChoices[0]?.id ?? '',
-					choices: deviceChoices,
+					label: 'Device command',
+					default: commandChoices[0]?.id ?? '',
+					choices: commandChoices,
+				},
+				{
+					id: 'argumentsJson',
+					type: 'textinput',
+					label: 'Arguments',
+					default: '[]',
+					tooltip: 'Enter a JSON array. Examples: [] for no arguments, [50] for a level, or ["heat"] for a mode.',
+					useVariables: true,
 				},
 			],
-			callback: async (event: CompanionActionEvent) => {
-				console.log('Switching on', event.options.deviceId)
+			callback: async (event: CompanionActionEvent, _context) => {
+				if (!self.api) {
+					self.log('error', 'SmartThings API is not connected')
+					return
+				}
+
+				const commandKey = typeof event.options.commandKey === 'string' ? event.options.commandKey : ''
+
+				const command = self.getDiscoveredCommand(commandKey)
+
+				if (!command) {
+					self.log('error', 'The selected SmartThings command was not found. Re-select the command in the action.')
+					return
+				}
+
+				try {
+					const argumentsJson = typeof event.options.argumentsJson === 'string' ? event.options.argumentsJson : '[]'
+
+					const commandArguments = parseArguments(argumentsJson, command.arguments.length)
+
+					await self.api.executeCommands(command.deviceId, [
+						{
+							component: command.componentId,
+							capability: command.capabilityId,
+							command: command.commandName,
+							arguments: commandArguments,
+						},
+					])
+
+					self.log('debug', `Executed ${command.capabilityId}.${command.commandName} on ${command.deviceLabel}`)
+
+					await self.refreshDeviceStatus(command.deviceId)
+				} catch (error) {
+					const message = error instanceof Error ? error.message : String(error)
+
+					self.log('error', `SmartThings command failed: ${message}`)
+				}
 			},
 		},
-	})
+	}
+
+	self.setActionDefinitions(actions)
 }
