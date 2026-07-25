@@ -52,25 +52,25 @@ function describeArguments(
 		.join(', ')
 }
 
-function parseArguments(value: string, expectedCount: number): unknown[] {
+function parseArguments(value: string): unknown[] {
 	const trimmed = value.trim()
 
 	if (!trimmed) {
-		if (expectedCount === 0) {
-			return []
-		}
-
-		throw new Error(`This command expects ${expectedCount} argument(s)`)
+		return []
 	}
 
 	let parsed: unknown
 
 	try {
 		parsed = JSON.parse(trimmed)
-	} catch (error) {
-		const message = error instanceof Error ? error.message : String(error)
-
-		throw new Error(`Arguments are not valid JSON: ${message}`, { cause: error })
+	} catch (_error) {
+		// If it's not valid JSON, try wrapping it in brackets to auto-convert single values
+		try {
+			parsed = JSON.parse(`[${trimmed}]`)
+		} catch (innerError) {
+			const message = innerError instanceof Error ? innerError.message : String(innerError)
+			throw new Error(`Arguments are not valid JSON: ${message}`, { cause: innerError })
+		}
 	}
 
 	if (!Array.isArray(parsed)) {
@@ -129,7 +129,7 @@ export function UpdateActions(self: SmartThingsInstance): void {
 				try {
 					const argumentsJson = typeof event.options.argumentsJson === 'string' ? event.options.argumentsJson : '[]'
 
-					const commandArguments = parseArguments(argumentsJson, command.arguments.length)
+					const commandArguments = parseArguments(argumentsJson)
 
 					await self.api.executeCommands(command.deviceId, [
 						{
