@@ -6,6 +6,7 @@ import {
 	type SmartThingsLocation,
 	type SmartThingsCapabilityDefinition,
 	type SmartThingsDiscoveredCommand,
+	type SmartThingsRule,
 } from './api/api.js'
 import type { ModuleConfig } from './config.js'
 import { GetConfigFields } from './config.js'
@@ -38,6 +39,7 @@ export class SmartThingsInstance extends InstanceBase<ModuleSchema> {
 	public locations: SmartThingsLocation[] = []
 	public capabilities = new Map<string, SmartThingsCapabilityDefinition>()
 	public discoveredCommands: SmartThingsDiscoveredCommand[] = []
+	public rules: SmartThingsRule[] = []
 
 	public deviceStatus: Map<string, unknown> = new Map()
 
@@ -69,8 +71,28 @@ export class SmartThingsInstance extends InstanceBase<ModuleSchema> {
 					throw new Error('Selected location is not available. Please choose a valid location.')
 				}
 				this.devices = await this.api.getDevicesByLocation(config.locationId)
+				// Fetch rules non-blocking - don't fail connection if rules unavailable
+				this.api.getRules(config.locationId).then(
+					(rules) => {
+						this.rules = rules
+					},
+					(error) => {
+						const message = error instanceof Error ? error.message : String(error)
+						this.log('warn', `Failed to fetch rules: ${message}`)
+					},
+				)
 			} else {
 				this.devices = await this.api.getDevices()
+				// Fetch rules non-blocking - don't fail connection if rules unavailable
+				this.api.getRules().then(
+					(rules) => {
+						this.rules = rules
+					},
+					(error) => {
+						const message = error instanceof Error ? error.message : String(error)
+						this.log('warn', `Failed to fetch rules: ${message}`)
+					},
+				)
 			}
 
 			await this.discoverCommands()
@@ -205,6 +227,10 @@ export class SmartThingsInstance extends InstanceBase<ModuleSchema> {
 
 	public getDiscoveredCommand(commandKey: string): SmartThingsDiscoveredCommand | undefined {
 		return this.discoveredCommands.find((command) => command.key === commandKey)
+	}
+
+	public getRule(ruleId: string): SmartThingsRule | undefined {
+		return this.rules.find((rule) => rule.id === ruleId)
 	}
 
 	private async pollStatus(): Promise<void> {

@@ -3,6 +3,8 @@ import type {
 	SmartThingsCommand,
 	SmartThingsDevice,
 	SmartThingsLocation,
+	SmartThingsRule,
+	SmartThingsRuleExecution,
 } from './types.js'
 
 export class SmartThingsApi {
@@ -102,6 +104,22 @@ export class SmartThingsApi {
 			body: JSON.stringify({ commands }),
 		})
 	}
+
+	public async getRules(locationId?: string): Promise<SmartThingsRule[]> {
+		const url = locationId ? `/rules?locationId=${encodeURIComponent(locationId)}` : '/rules'
+		const response = await this.request<{
+			items?: SmartThingsRule[]
+			_links?: unknown
+		}>(url)
+
+		return response.items ?? []
+	}
+
+	public async executeRule(ruleId: string): Promise<SmartThingsRuleExecution> {
+		return this.request(`/rules/${encodeURIComponent(ruleId)}/execute`, {
+			method: 'POST',
+		})
+	}
 }
 
 export type {
@@ -110,4 +128,6 @@ export type {
 	SmartThingsDevice,
 	SmartThingsDiscoveredCommand,
 	SmartThingsLocation,
+	SmartThingsRule,
+	SmartThingsRuleExecution,
 } from './types.js'

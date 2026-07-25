@@ -9,6 +9,11 @@ export type ActionsSchema = {
 			argumentsJson: string
 		}
 	}
+	execute_rule: {
+		options: {
+			ruleId: string
+		}
+	}
 }
 
 function describeArguments(
@@ -142,6 +147,47 @@ export function UpdateActions(self: SmartThingsInstance): void {
 					const message = error instanceof Error ? error.message : String(error)
 
 					self.log('error', `SmartThings command failed: ${message}`)
+				}
+			},
+		},
+		execute_rule: {
+			name: 'Execute SmartThings Rule',
+			description: 'Execute a rule from SmartThings',
+			options: [
+				{
+					id: 'ruleId',
+					type: 'dropdown',
+					label: 'Rule',
+					default: self.rules[0]?.id ?? '',
+					choices: self.rules.map((rule) => ({
+						id: rule.id,
+						label: `${rule.name}${rule.description ? ` - ${rule.description}` : ''}`,
+					})),
+				},
+			],
+			callback: async (event: CompanionActionEvent, _context) => {
+				if (!self.api) {
+					self.log('error', 'SmartThings API is not connected')
+					return
+				}
+
+				const ruleId = typeof event.options.ruleId === 'string' ? event.options.ruleId : ''
+
+				const rule = self.getRule(ruleId)
+
+				if (!rule) {
+					self.log('error', 'The selected SmartThings rule was not found. Re-select the rule in the action.')
+					return
+				}
+
+				try {
+					await self.api.executeRule(ruleId)
+
+					self.log('debug', `Executed rule: ${rule.name}`)
+				} catch (error) {
+					const message = error instanceof Error ? error.message : String(error)
+
+					self.log('error', `SmartThings rule execution failed: ${message}`)
 				}
 			},
 		},

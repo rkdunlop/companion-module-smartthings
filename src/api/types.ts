@@ -72,3 +72,17 @@ export interface SmartThingsLocation {
 	locationId: string
 	name: string
 }
+
+export interface SmartThingsRule {
+	id: string
+	name: string
+	description?: string
+	locationId?: string
+	enabled?: boolean
+}
+
+export interface SmartThingsRuleExecution {
+	id: string
+	ruleId: string
+	results?: unknown
+}
