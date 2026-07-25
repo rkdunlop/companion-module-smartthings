@@ -1,6 +1,12 @@
 import { InstanceBase, InstanceStatus, type InstanceTypes } from '@companion-module/base'
 
-import { SmartThingsApi, type SmartThingsDevice, type SmartThingsLocation } from './api/api.js'
+import {
+	SmartThingsApi,
+	type SmartThingsDevice,
+	type SmartThingsLocation,
+	type SmartThingsCapabilityDefinition,
+	type SmartThingsDiscoveredCommand,
+} from './api/api.js'
 import type { ModuleConfig } from './config.js'
 import { GetConfigFields } from './config.js'
 import { UpdateActions } from './actions.js'
@@ -20,7 +26,7 @@ export type ModuleSchema = {
 	variables: VariablesSchema
 } & InstanceTypes
 
-class SmartThingsInstance extends InstanceBase<ModuleSchema> {
+export class SmartThingsInstance extends InstanceBase<ModuleSchema> {
 	public config: ModuleConfig = {
 		token: '',
 		pollInterval: 5000,
@@ -30,7 +36,8 @@ class SmartThingsInstance extends InstanceBase<ModuleSchema> {
 	public api?: SmartThingsApi
 	public devices: SmartThingsDevice[] = []
 	public locations: SmartThingsLocation[] = []
-	public capabilities = new Map()
+	public capabilities = new Map<string, SmartThingsCapabilityDefinition>()
+	public discoveredCommands: SmartThingsDiscoveredCommand[] = []
 
 	public deviceStatus: Map<string, unknown> = new Map()
 
@@ -66,13 +73,9 @@ class SmartThingsInstance extends InstanceBase<ModuleSchema> {
 				this.devices = await this.api.getDevices()
 			}
 
-			//this.log('debug', JSON.stringify(this.devices[0], null, 2))
-			const firstDevice = this.devices[0]
-			const firstCapability = firstDevice?.components?.[0]?.capabilities?.[0]
-			if (firstCapability) {
-				const capabilityDefinition = await this.api.getCapability(firstCapability.id, firstCapability.version)
-				this.log('debug', JSON.stringify(capabilityDefinition, null, 2))
-				this.capabilities.set(firstCapability.id, capabilityDefinition)
+			await this.discoverCommands()
+			for (const command of this.discoveredCommands) {
+				this.log('debug', `${command.deviceLabel}: ${command.capabilityId}.${command.commandName}`)
 			}
 
 			this.initActions()
@@ -122,6 +125,89 @@ class SmartThingsInstance extends InstanceBase<ModuleSchema> {
 			clearInterval(this.pollTimer)
 			this.pollTimer = undefined
 		}
+	}
+
+	private async discoverCommands(): Promise<void> {
+		if (!this.api) {
+			return
+		}
+		this.capabilities.clear()
+		this.discoveredCommands = []
+
+		const requiredCapabilities = new Map<string, { id: string; version: number }>()
+
+		/* Build a unique list of required capabilities and their versions from all devices and components */
+		for (const device of this.devices) {
+			for (const component of device.components) {
+				for (const capabilityRef of component.capabilities) {
+					const key = `${capabilityRef.id}:${capabilityRef.version}`
+					if (!requiredCapabilities.has(key)) {
+						requiredCapabilities.set(key, { id: capabilityRef.id, version: capabilityRef.version })
+					}
+				}
+			}
+		}
+
+		/* Fetch the capability definitions for all required capabilities */
+		const results = await Promise.allSettled(
+			[...requiredCapabilities.entries()].map(async ([cacheKey, capability]) => {
+				const definition = await this.api!.getCapability(capability.id, capability.version)
+				return { cacheKey, definition }
+			}),
+		)
+
+		for (const result of results) {
+			if (result.status === 'fulfilled') {
+				this.capabilities.set(result.value.cacheKey, result.value.definition)
+				continue
+			}
+			const message = result.reason instanceof Error ? result.reason.message : String(result.reason)
+			this.log('warn', `Failed to fetch capability definition: ${message}`)
+		}
+		/* Build one flat list of device commands for use by companion actions and feedbacks */
+		for (const device of this.devices) {
+			const deviceLabel = device.label || device.name || device.deviceId
+			for (const component of device.components ?? []) {
+				for (const capability of component.capabilities ?? []) {
+					const cacheKey = `${capability.id}:${capability.version}`
+					const definition = this.capabilities.get(cacheKey)
+
+					if (!definition?.commands) {
+						continue
+					}
+
+					for (const [commandName, commandDefinition] of Object.entries(definition.commands)) {
+						const key = [device.deviceId, component.id, capability.id, String(capability.version), commandName].join(
+							'|',
+						)
+
+						this.discoveredCommands.push({
+							key,
+							deviceId: device.deviceId,
+							deviceLabel,
+							componentId: component.id,
+							capabilityId: capability.id,
+							capabilityVersion: capability.version,
+							commandName,
+							arguments: commandDefinition.arguments ?? [],
+						})
+					}
+				}
+			}
+		}
+		this.discoveredCommands.sort((a, b) => {
+			return (
+				a.deviceLabel.localeCompare(b.deviceLabel) ||
+				a.capabilityId.localeCompare(b.capabilityId) ||
+				a.commandName.localeCompare(b.commandName)
+			)
+		})
+
+		this.log('info', `Discovered ${this.discoveredCommands.length} SmartThings commands`)
+	}
+
+	public getDiscoveredCommands(commandKey: string): SmartThingsDiscoveredCommand | undefined {
+		return this.discoveredCommands.find((command) => command.key === commandKey)
 	}
 
 	private async pollStatus(): Promise<void> {

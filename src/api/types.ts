@@ -57,7 +57,7 @@ export interface SmartThingsCommand {
 	arguments?: unknown[]
 }
 
-export interface DiscoveredCommand {
+export interface SmartThingsDiscoveredCommand {
 	key: string
 	deviceId: string
 	deviceLabel: string

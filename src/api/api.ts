@@ -1,44 +1,9 @@
-import type { SmartThingsCapabilityDefinition } from './types.js'
-
-export interface SmartThingsDevice {
-	deviceId: string
-	name: string
-	label?: string
-	locationId?: string
-	roomId?: string
-	components?: Array<{
-		id: string
-		capabilities: Array<{
-			id: string
-			version: number
-		}>
-	}>
-}
-
-export interface SmartThingsCommand {
-	component: string
-	capability: string
-	command: string
-	arguments?: unknown[]
-}
-
-export interface SmartThingsLocation {
-	locationId: string
-	name: string
-	countryCode?: string
-	latitude?: number
-	longitude?: number
-	regionRadius?: number
-	temperatureScale?: string
-	timeZoneId?: string
-	locale?: string
-	parent?: Array<{
-		type: string
-		id: string
-	}>
-	createdDate?: string
-	modifiedDate?: string
-}
+import type {
+	SmartThingsCapabilityDefinition,
+	SmartThingsCommand,
+	SmartThingsDevice,
+	SmartThingsLocation,
+} from './types.js'
 
 export class SmartThingsApi {
 	private readonly baseUrl = 'https://api.smartthings.com/v1'
@@ -138,3 +103,11 @@ export class SmartThingsApi {
 		})
 	}
 }
+
+export type {
+	SmartThingsCapabilityDefinition,
+	SmartThingsCommand,
+	SmartThingsDevice,
+	SmartThingsDiscoveredCommand,
+	SmartThingsLocation,
+} from './types.js'
