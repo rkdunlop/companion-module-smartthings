@@ -197,11 +197,13 @@ export function UpdateActions(self: SmartThingsInstance): void {
 
 					self.log('debug', `SmartThings command response: ${JSON.stringify(response)}`)
 
-					await self.refreshDeviceStatus(device.deviceId)
+					setTimeout(() => {
+						void self.refreshDeviceStatus(device.deviceId).then(() => {
+							const resultingSwitchState = self.getAttribute(device.deviceId, 'switch', 'switch', command.componentId)
 
-					const resultingSwitchState = self.getAttribute(device.deviceId, 'switch', ' switch', command.componentId)
-
-					self.log('debug', `Switch state after command: ${resultingSwitchState}`)
+							self.log('debug', `Switch state after command: ${resultingSwitchState}`)
+						})
+					}, 1500)
 				} catch (error) {
 					const message = error instanceof Error ? error.message : String(error)
 
