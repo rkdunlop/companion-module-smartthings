@@ -1,8 +1,8 @@
 {
 	"$schema": "../node_modules/@companion-module/base/assets/manifest.schema.json",
 	"type": "connection",
-	"id": "companion-module-smartthings",
-	"name": "companion-module-smartthings",
+	"id": "smartthings",
+	"name": "smartthings",
 	"shortname": "smartthings",
 	"description": "A short one line description of your module",
 	"version": "0.1.0",
