@@ -93,33 +93,58 @@ function parseArguments(value: string): unknown[] {
 	return parsed
 }
 
+function compareCommands(
+	left: {
+		componentId: string
+		capabilityId: string
+		commandName: string
+	},
+	right: { componentId: string; capabilityId: string; commandName: string },
+): number {
+	return (
+		left.componentId.localeCompare(right.componentId) ||
+		left.capabilityId.localeCompare(right.capabilityId) ||
+		left.commandName.localeCompare(right.commandName)
+	)
+}
+
 export function UpdateActions(self: SmartThingsInstance): void {
 	const actions = {} as CompanionActionDefinitions<ActionsSchema>
 
 	for (const device of self.devices) {
 		const deviceLabel = device.label || device.name || device.deviceId
 
-		const deviceCommands = self.discoveredCommands.filter((command) => command.deviceId === device.deviceId)
+		const deviceCommands = self.discoveredCommands
+			.filter((command) => command.deviceId === device.deviceId)
+			.sort(compareCommands)
 
 		if (deviceCommands.length === 0) {
 			continue
 		}
 
-		const commandChoices: DropdownChoice[] = deviceCommands.map((command) => ({
-			id: command.key,
-			label: `${command.capabilityId}.${command.commandName} ` + `[${describeArguments(command.arguments)}]`,
-		}))
+		const commandChoices: DropdownChoice[] = deviceCommands.map((command) => {
+			const argumentDescription = describeArguments(command.arguments)
+
+			return {
+				id: command.key,
+				label:
+					`${command.componentId} → ` +
+					`${command.capabilityId} → ` +
+					`${command.commandName}` +
+					(command.arguments.length > 0 ? ` [${argumentDescription}]` : ''),
+			}
+		})
 
 		const actionId: DeviceActionId = `device_${device.deviceId}`
 
 		actions[actionId] = {
 			name: deviceLabel,
-			description: `Execute a command on ${deviceLabel}`,
+			description: `Execute a SmartThings command on ${deviceLabel}`,
 			options: [
 				{
 					id: 'commandKey',
 					type: 'dropdown',
-					label: 'Command',
+					label: 'Component / Capability / Command',
 					default: commandChoices[0]?.id ?? '',
 					choices: commandChoices,
 				},
@@ -143,7 +168,7 @@ export function UpdateActions(self: SmartThingsInstance): void {
 				const command = self.getDiscoveredCommand(commandKey)
 
 				if (!command) {
-					self.log('error', 'The selected SmartThings command was not found.')
+					self.log('error', 'The selected SmartThings command was not found. Re-select the command.')
 					return
 				}
 
@@ -170,6 +195,11 @@ export function UpdateActions(self: SmartThingsInstance): void {
 						},
 					])
 
+					self.log(
+						'debug',
+						`Executed ${command.componentId}.${command.capabilityId}.${command.commandName} on ${deviceLabel}`,
+					)
+
 					await self.refreshDeviceStatus(device.deviceId)
 				} catch (error) {
 					const message = error instanceof Error ? error.message : String(error)
@@ -191,11 +221,16 @@ export function UpdateActions(self: SmartThingsInstance): void {
 				default: self.rules[0]?.id ?? '',
 				choices: self.rules.map((rule) => ({
 					id: rule.id,
-					label: `${rule.name}${rule.description ? ` - ${rule.description}` : ''}`,
+					label: `${rule.name}` + (rule.description ? ` - ${rule.description}` : ''),
 				})),
 			},
 		],
-		callback: async (event: CompanionActionEvent<{ ruleId: string }>, _context: CompanionActionContext) => {
+		callback: async (
+			event: CompanionActionEvent<{
+				ruleId: string
+			}>,
+			_context: CompanionActionContext,
+		) => {
 			if (!self.api) {
 				self.log('error', 'SmartThings API is not connected')
 				return
@@ -221,5 +256,6 @@ export function UpdateActions(self: SmartThingsInstance): void {
 			}
 		},
 	}
+
 	self.setActionDefinitions(actions)
 }
