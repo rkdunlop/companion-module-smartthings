@@ -1,15 +1,27 @@
 import type SmartThingsInstance from './main.js'
-
 export type VariablesSchema = {
-	variable1: string
-	variable2: string
-	variable3: string
+	[key: string]: string
+}
+
+function switchVariableId(deviceId: string): string {
+	return `device_${deviceId}_switch`
 }
 
 export function UpdateVariableDefinitions(self: SmartThingsInstance): void {
-	self.setVariableDefinitions({
-		variable1: { name: 'My first variable' },
-		variable2: { name: 'My second variable' },
-		variable3: { name: 'Another variable' },
-	})
+	const definitions = Object.fromEntries(
+		self.devices
+			.filter((device) =>
+				device.components?.some((component) =>
+					component.capabilities?.some((capability) => capability.id === 'switch'),
+				),
+			)
+			.map((device) => [
+				switchVariableId(device.deviceId),
+				{
+					name: `${device.label || device.name || device.deviceId} switch state`,
+				},
+			]),
+	)
+
+	self.setVariableDefinitions(definitions)
 }

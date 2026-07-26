@@ -1,4 +1,4 @@
-import { InstanceBase, InstanceStatus, type InstanceTypes } from '@companion-module/base'
+import { InstanceBase, InstanceStatus } from '@companion-module/base'
 
 import {
 	SmartThingsApi,
@@ -25,7 +25,7 @@ export type ModuleSchema = {
 	actions: ActionsSchema
 	feedbacks: FeedbacksSchema
 	variables: VariablesSchema
-} & InstanceTypes
+}
 
 export class SmartThingsInstance extends InstanceBase<ModuleSchema> {
 	public config: ModuleConfig = {
@@ -259,12 +259,13 @@ export class SmartThingsInstance extends InstanceBase<ModuleSchema> {
 				try {
 					const status = await this.api.getDeviceStatus(device.deviceId)
 					this.deviceStatus.set(device.deviceId, status)
+					this.updateDeviceVariables(device.deviceId)
 				} catch (error) {
 					const message = error instanceof Error ? error.message : String(error)
 					this.log('warn', `Failed to load status for device ${device.deviceId}: ${message}`)
 				}
 			}
-			this.checkFeedbacks('*')
+			this.checkAllFeedbacks()
 		} finally {
 			this.pollInProgress = false
 		}
@@ -277,7 +278,8 @@ export class SmartThingsInstance extends InstanceBase<ModuleSchema> {
 		try {
 			const status = await this.api.getDeviceStatus(deviceId)
 			this.deviceStatus.set(deviceId, status)
-			this.checkFeedbacks('*')
+			this.updateDeviceVariables(deviceId)
+			this.checkFeedbacks('switch_is_on')
 		} catch (error) {
 			const message = error instanceof Error ? error.message : String(error)
 			this.log('warn', `Failed to refresh device status for ${deviceId}: ${message}`)
@@ -302,6 +304,14 @@ export class SmartThingsInstance extends InstanceBase<ModuleSchema> {
 			| undefined
 
 		return status?.components?.[component]?.[capability]?.[attribute]?.value
+	}
+
+	private updateDeviceVariables(deviceId: string): void {
+		const state = this.getAttribute(deviceId, 'switch', 'switch', 'main')
+
+		this.setVariableValues({
+			[`device_${deviceId}_switch`]: typeof state === 'string' ? state : 'unknown',
+		})
 	}
 
 	public initActions(): void {
