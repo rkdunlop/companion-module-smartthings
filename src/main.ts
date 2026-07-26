@@ -82,10 +82,11 @@ export class SmartThingsInstance extends InstanceBase<ModuleSchema> {
 			this.initVariables()
 			this.initPresets()
 
-			await this.pollStatus()
-			this.startPolling()
-
 			this.updateStatus(InstanceStatus.Ok)
+
+			void this.pollStatus().finally(() => {
+				this.startPolling()
+			})
 		} catch (error) {
 			const message = error instanceof Error ? error.message : String(error)
 			const badConfig = message === 'Selected location is not available. Please choose a valid location.'
@@ -245,20 +246,27 @@ export class SmartThingsInstance extends InstanceBase<ModuleSchema> {
 		}
 	}
 
+	private pollInProgress = false
 	private async pollStatus(): Promise<void> {
 		// Populate device-state cache here.
-		if (!this.api) {
+		if (!this.api || this.pollInProgress) {
 			return
 		}
 
-		for (const device of this.devices) {
-			try {
-				const status = await this.api.getDeviceStatus(device.deviceId)
-				this.deviceStatus.set(device.deviceId, status)
-			} catch (error) {
-				const message = error instanceof Error ? error.message : String(error)
-				this.log('warn', `Failed to load status for device ${device.deviceId}: ${message}`)
+		this.pollInProgress = true
+		try {
+			for (const device of this.devices) {
+				try {
+					const status = await this.api.getDeviceStatus(device.deviceId)
+					this.deviceStatus.set(device.deviceId, status)
+				} catch (error) {
+					const message = error instanceof Error ? error.message : String(error)
+					this.log('warn', `Failed to load status for device ${device.deviceId}: ${message}`)
+				}
 			}
+			this.checkFeedbacks('*')
+		} finally {
+			this.pollInProgress = false
 		}
 	}
 
