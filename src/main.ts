@@ -71,31 +71,11 @@ export class SmartThingsInstance extends InstanceBase<ModuleSchema> {
 					throw new Error('Selected location is not available. Please choose a valid location.')
 				}
 				this.devices = await this.api.getDevicesByLocation(config.locationId)
-				// Fetch rules non-blocking - don't fail connection if rules unavailable
-				this.api.getRules(config.locationId).then(
-					(rules) => {
-						this.rules = rules
-					},
-					(error) => {
-						const message = error instanceof Error ? error.message : String(error)
-						this.log('warn', `Failed to fetch rules: ${message}`)
-					},
-				)
 			} else {
 				this.devices = await this.api.getDevices()
-				// Fetch rules non-blocking - don't fail connection if rules unavailable
-				this.api.getRules().then(
-					(rules) => {
-						this.rules = rules
-					},
-					(error) => {
-						const message = error instanceof Error ? error.message : String(error)
-						this.log('warn', `Failed to fetch rules: ${message}`)
-					},
-				)
 			}
 
-			await this.discoverCommands()
+			await Promise.all([this.discoverCommands(), this.loadRules(config.locationId)])
 
 			this.initActions()
 			this.initFeedbacks()
@@ -231,6 +211,23 @@ export class SmartThingsInstance extends InstanceBase<ModuleSchema> {
 
 	public getRule(ruleId: string): SmartThingsRule | undefined {
 		return this.rules.find((rule) => rule.id === ruleId)
+	}
+
+	private async loadRules(locationId?: string): Promise<void> {
+		if (!this.api) {
+			return
+		}
+
+		try {
+			this.rules = await this.api.getRules(locationId)
+
+			this.log('info', `Loaded ${this.rules.length} SmartThings rules`)
+		} catch (error) {
+			this.rules = []
+			const message = error instanceof Error ? error.message : String(error)
+
+			this.log('warn', `Failed to load rules: ${message}`)
+		}
 	}
 
 	private async pollStatus(): Promise<void> {
