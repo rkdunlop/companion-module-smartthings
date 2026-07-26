@@ -26,6 +26,15 @@ export class SmartThingsClient {
 					return undefined as T
 				}
 
+				if (response.status === 429) {
+					const resetHeader = response.headers.get('x-ratelimit-reset')
+					const resetMs = Number(resetHeader)
+
+					throw new Error(
+						`SmartThings rate limit reached; reset in ${Number.isFinite(resetMs) ? resetMs : 'unknown'} ms`,
+					)
+				}
+
 				return (await response.json()) as T
 			}
 
