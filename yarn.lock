@@ -650,6 +650,23 @@ __metadata:
   languageName: node
   linkType: hard
 
+"companion-module-smartthings@workspace:.":
+  version: 0.0.0-use.local
+  resolution: "companion-module-smartthings@workspace:."
+  dependencies:
+    "@companion-module/base": "npm:2.0.4"
+    "@companion-module/tools": "npm:^3.0.1"
+    "@types/node": "npm:^22.19.17"
+    eslint: "npm:^10.2.0"
+    husky: "npm:^9.1.7"
+    lint-staged: "npm:^16.4.0"
+    prettier: "npm:^3.8.3"
+    rimraf: "npm:^6.1.3"
+    typescript: "npm:~6.0.3"
+    typescript-eslint: "npm:^8.59.0"
+  languageName: unknown
+  linkType: soft
+
 "cross-spawn@npm:^7.0.6":
   version: 7.0.6
   resolution: "cross-spawn@npm:7.0.6"
@@ -1576,23 +1593,6 @@ __metadata:
   checksum: 10c0/0ce4aa91febb7cea4a00c2c27bb820fa53b6d2862ce0f80f7120134719f7914fc416b0ed966cf35250a3169e152916392f35917a2d7cad0fcc5d8b841010fa9a
   languageName: node
   linkType: hard
-
-"smartthings-companion-module@workspace:.":
-  version: 0.0.0-use.local
-  resolution: "smartthings-companion-module@workspace:."
-  dependencies:
-    "@companion-module/base": "npm:2.0.4"
-    "@companion-module/tools": "npm:^3.0.1"
-    "@types/node": "npm:^22.19.17"
-    eslint: "npm:^10.2.0"
-    husky: "npm:^9.1.7"
-    lint-staged: "npm:^16.4.0"
-    prettier: "npm:^3.8.3"
-    rimraf: "npm:^6.1.3"
-    typescript: "npm:~6.0.3"
-    typescript-eslint: "npm:^8.59.0"
-  languageName: unknown
-  linkType: soft
 
 "string-argv@npm:^0.3.2":
   version: 0.3.2

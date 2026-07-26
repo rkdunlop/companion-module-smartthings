@@ -1,14 +1,14 @@
 {
 	"$schema": "../node_modules/@companion-module/base/assets/manifest.schema.json",
 	"type": "connection",
-	"id": "smartthings-companion-module",
-	"name": "smartthings-companion-module",
+	"id": "companion-module-smartthings",
+	"name": "companion-module-smartthings",
 	"shortname": "smartthings",
 	"description": "A short one line description of your module",
 	"version": "0.0.0",
 	"license": "MIT",
-	"repository": "git+https://github.com/bitfocus/companion-module-smartthings-companion-module.git",
-	"bugs": "https://github.com/bitfocus/companion-module-your-module-name/issues",
+	"repository": "git+https://github.com/rkdunlop/companion-module-smartthings.git",
+	"bugs": "https://github.com/rkdunlop/companion-module-smartthings/issues",
 	"maintainers": [
 		{
 			"name": "Your name",
