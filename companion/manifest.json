@@ -5,14 +5,14 @@
 	"name": "companion-module-smartthings",
 	"shortname": "smartthings",
 	"description": "A short one line description of your module",
-	"version": "0.0.0",
+	"version": "0.1.0",
 	"license": "MIT",
 	"repository": "git+https://github.com/rkdunlop/companion-module-smartthings.git",
 	"bugs": "https://github.com/rkdunlop/companion-module-smartthings/issues",
 	"maintainers": [
 		{
-			"name": "Your name",
-			"email": "Your email"
+			"name": "RK Dunlop",
+			"email": "rkdunlop@users.noreply.github.com"
 		}
 	],
 	"runtime": {
