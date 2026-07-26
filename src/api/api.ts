@@ -1,6 +1,7 @@
 import type {
 	SmartThingsCapabilityDefinition,
 	SmartThingsCommand,
+	SmartThingsCommandResponse,
 	SmartThingsDevice,
 	SmartThingsLocation,
 	SmartThingsRule,
@@ -105,8 +106,8 @@ export class SmartThingsApi {
 		return this.request(`/capabilities/${encodeURIComponent(capability)}/${version}`)
 	}
 
-	public async executeCommands(deviceId: string, commands: SmartThingsCommand[]): Promise<void> {
-		await this.request(`/devices/${encodeURIComponent(deviceId)}/commands`, {
+	public async executeCommands(deviceId: string, commands: SmartThingsCommand[]): Promise<SmartThingsCommandResponse> {
+		return this.request<SmartThingsCommandResponse>(`/devices/${encodeURIComponent(deviceId)}/commands`, {
 			method: 'POST',
 			body: JSON.stringify({ commands }),
 		})

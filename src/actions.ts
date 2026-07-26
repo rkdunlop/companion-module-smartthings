@@ -25,10 +25,6 @@ export type ActionsSchema = {
 	}
 >
 
-type CompanionActionContextWithParse = CompanionActionContext & {
-	parseVariablesInString(value: string): Promise<string>
-}
-
 function describeArguments(
 	argumentsList: Array<{
 		name: string
@@ -157,7 +153,7 @@ export function UpdateActions(self: SmartThingsInstance): void {
 					useVariables: true,
 				},
 			],
-			callback: async (event: CompanionActionEvent<DeviceActionOptions>, context: CompanionActionContext) => {
+			callback: async (event: CompanionActionEvent<DeviceActionOptions>) => {
 				if (!self.api) {
 					self.log('error', 'SmartThings API is not connected')
 					return
@@ -180,27 +176,32 @@ export function UpdateActions(self: SmartThingsInstance): void {
 				try {
 					const rawArguments = typeof event.options.argumentsJson === 'string' ? event.options.argumentsJson : '[]'
 
-					const expandedArguments = await (context as CompanionActionContextWithParse).parseVariablesInString(
-						rawArguments,
-					)
+					const commandArguments = parseArguments(rawArguments)
 
-					const commandArguments = parseArguments(expandedArguments)
-
-					await self.api.executeCommands(device.deviceId, [
-						{
-							component: command.componentId,
-							capability: command.capabilityId,
-							command: command.commandName,
-							arguments: commandArguments,
-						},
-					])
+					const payload = {
+						component: command.componentId,
+						capability: command.capabilityId,
+						command: command.commandName,
+						arguments: commandArguments,
+					}
 
 					self.log(
 						'debug',
-						`Executed ${command.componentId}.${command.capabilityId}.${command.commandName} on ${deviceLabel}`,
+						`Sending SmartThings command: ${JSON.stringify({
+							deviceId: device.deviceId,
+							...payload,
+						})}`,
 					)
 
+					const response = await self.api.executeCommands(device.deviceId, [payload])
+
+					self.log('debug', `SmartThings command response: ${JSON.stringify(response)}`)
+
 					await self.refreshDeviceStatus(device.deviceId)
+
+					const resultingSwitchState = self.getAttribute(device.deviceId, 'switch', ' switch', command.componentId)
+
+					self.log('debug', `Switch state after command: ${resultingSwitchState}`)
 				} catch (error) {
 					const message = error instanceof Error ? error.message : String(error)
 

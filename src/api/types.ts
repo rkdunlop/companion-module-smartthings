@@ -86,3 +86,12 @@ export interface SmartThingsRuleExecution {
 	ruleId: string
 	results?: unknown
 }
+
+export interface SmartThingsCommandResult {
+	id?: string
+	status?: string
+}
+
+export interface SmartThingsCommandResponse {
+	results?: SmartThingsCommandResult[]
+}
