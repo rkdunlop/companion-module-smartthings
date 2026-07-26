@@ -30,7 +30,7 @@ export function GetConfigFields(): SomeCompanionConfigField[] {
 			id: 'locationId',
 			label: 'Location',
 			width: 12,
-			choices: [],
+			choices: [{ id: '', label: 'All locations' }],
 			default: '',
 			allowCustom: false,
 		},

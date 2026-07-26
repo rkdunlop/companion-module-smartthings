@@ -9,8 +9,11 @@ import type {
 
 export class SmartThingsApi {
 	private readonly baseUrl = 'https://api.smartthings.com/v1'
+	private readonly token: string
 
-	public constructor(private token: string) {}
+	public constructor(token: string) {
+		this.token = token.trim()
+	}
 
 	private async request<T>(path: string, options: RequestInit = {}): Promise<T> {
 		const maxRetries = 5
@@ -60,7 +63,11 @@ export class SmartThingsApi {
 				await new Promise((resolve) => setTimeout(resolve, waitMs))
 				continue
 			}
-
+			if (response.status === 401) {
+				throw new Error(
+					'SmartThings authorization failed. The token may be invalid or expired. Personal Access Tokens expire after 24 hours.',
+				)
+			}
 			throw new Error(`SmartThings API error ${response.status}: ${text}`)
 		}
 	}

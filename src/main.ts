@@ -98,11 +98,26 @@ export class SmartThingsInstance extends InstanceBase<ModuleSchema> {
 	public getConfigFields(): ReturnType<typeof GetConfigFields> {
 		const fields = GetConfigFields()
 		const locationField = fields.find((field) => field.id === 'locationId')
-		if (locationField && this.locations.length > 0 && 'choices' in locationField) {
-			locationField.choices = this.locations.map((location) => ({
-				id: location.locationId,
-				label: location.name,
-			}))
+
+		if (locationField && 'choices' in locationField) {
+			locationField.choices = [
+				{ id: '', label: 'All locations' },
+				...this.locations.map((location) => ({
+					id: location.locationId,
+					label: location.name,
+				})),
+			]
+
+			const savedLocationId = this.config.locationId
+
+			const savedLocationExists = locationField.choices.some((choice) => choice.id === savedLocationId)
+
+			if (savedLocationId && !savedLocationExists) {
+				locationField.choices.push({
+					id: savedLocationId,
+					label: `Previously selected location (${savedLocationId})`,
+				})
+			}
 		}
 		return fields
 	}
