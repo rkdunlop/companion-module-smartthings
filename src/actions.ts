@@ -1,19 +1,32 @@
-import type { CompanionActionDefinitions, CompanionActionEvent, DropdownChoice } from '@companion-module/base'
+import type {
+	CompanionActionContext,
+	CompanionActionDefinitions,
+	CompanionActionEvent,
+	DropdownChoice,
+} from '@companion-module/base'
 
 import type { SmartThingsInstance } from './main.js'
 
+export type DeviceActionOptions = {
+	commandKey: string
+	argumentsJson: string
+}
+export type DeviceActionId = `device_${string}`
 export type ActionsSchema = {
-	execute_discovered_command: {
-		options: {
-			commandKey: string
-			argumentsJson: string
-		}
-	}
 	execute_rule: {
 		options: {
 			ruleId: string
 		}
 	}
+} & Record<
+	DeviceActionId,
+	{
+		options: DeviceActionOptions
+	}
+>
+
+type CompanionActionContextWithParse = CompanionActionContext & {
+	parseVariablesInString(value: string): Promise<string>
 }
 
 function describeArguments(
@@ -81,24 +94,32 @@ function parseArguments(value: string): unknown[] {
 }
 
 export function UpdateActions(self: SmartThingsInstance): void {
-	const commandChoices: DropdownChoice[] = self.discoveredCommands.map((command) => ({
-		id: command.key,
-		label:
-			`${command.deviceLabel} → ` +
-			`${command.componentId} → ` +
-			`${command.capabilityId}.${command.commandName} ` +
-			`[${describeArguments(command.arguments)}]`,
-	}))
+	const actions = {} as CompanionActionDefinitions<ActionsSchema>
 
-	const actions: CompanionActionDefinitions<ActionsSchema> = {
-		execute_discovered_command: {
-			name: 'Execute SmartThings Command',
-			description: 'Execute a command discovered from a SmartThings device capability',
+	for (const device of self.devices) {
+		const deviceLabel = device.label || device.name || device.deviceId
+
+		const deviceCommands = self.discoveredCommands.filter((command) => command.deviceId === device.deviceId)
+
+		if (deviceCommands.length === 0) {
+			continue
+		}
+
+		const commandChoices: DropdownChoice[] = deviceCommands.map((command) => ({
+			id: command.key,
+			label: `${command.capabilityId}.${command.commandName} ` + `[${describeArguments(command.arguments)}]`,
+		}))
+
+		const actionId: DeviceActionId = `device_${device.deviceId}`
+
+		actions[actionId] = {
+			name: deviceLabel,
+			description: `Execute a command on ${deviceLabel}`,
 			options: [
 				{
 					id: 'commandKey',
 					type: 'dropdown',
-					label: 'Device command',
+					label: 'Command',
 					default: commandChoices[0]?.id ?? '',
 					choices: commandChoices,
 				},
@@ -107,11 +128,11 @@ export function UpdateActions(self: SmartThingsInstance): void {
 					type: 'textinput',
 					label: 'Arguments',
 					default: '[]',
-					tooltip: 'Enter a JSON array. Examples: [] for no arguments, [50] for a level, or ["heat"] for a mode.',
+					tooltip: 'Enter a JSON array. Examples: [], [50], or ["heat"].',
 					useVariables: true,
 				},
 			],
-			callback: async (event: CompanionActionEvent, _context) => {
+			callback: async (event: CompanionActionEvent<DeviceActionOptions>, context: CompanionActionContext) => {
 				if (!self.api) {
 					self.log('error', 'SmartThings API is not connected')
 					return
@@ -122,16 +143,25 @@ export function UpdateActions(self: SmartThingsInstance): void {
 				const command = self.getDiscoveredCommand(commandKey)
 
 				if (!command) {
-					self.log('error', 'The selected SmartThings command was not found. Re-select the command in the action.')
+					self.log('error', 'The selected SmartThings command was not found.')
+					return
+				}
+
+				if (command.deviceId !== device.deviceId) {
+					self.log('error', 'The selected command does not belong to this device.')
 					return
 				}
 
 				try {
-					const argumentsJson = typeof event.options.argumentsJson === 'string' ? event.options.argumentsJson : '[]'
+					const rawArguments = typeof event.options.argumentsJson === 'string' ? event.options.argumentsJson : '[]'
 
-					const commandArguments = parseArguments(argumentsJson)
+					const expandedArguments = await (context as CompanionActionContextWithParse).parseVariablesInString(
+						rawArguments,
+					)
 
-					await self.api.executeCommands(command.deviceId, [
+					const commandArguments = parseArguments(expandedArguments)
+
+					await self.api.executeCommands(device.deviceId, [
 						{
 							component: command.componentId,
 							capability: command.capabilityId,
@@ -140,58 +170,56 @@ export function UpdateActions(self: SmartThingsInstance): void {
 						},
 					])
 
-					self.log('debug', `Executed ${command.capabilityId}.${command.commandName} on ${command.deviceLabel}`)
-
-					await self.refreshDeviceStatus(command.deviceId)
+					await self.refreshDeviceStatus(device.deviceId)
 				} catch (error) {
 					const message = error instanceof Error ? error.message : String(error)
 
 					self.log('error', `SmartThings command failed: ${message}`)
 				}
 			},
-		},
-		execute_rule: {
-			name: 'Execute SmartThings Rule',
-			description: 'Execute a rule from SmartThings',
-			options: [
-				{
-					id: 'ruleId',
-					type: 'dropdown',
-					label: 'Rule',
-					default: self.rules[0]?.id ?? '',
-					choices: self.rules.map((rule) => ({
-						id: rule.id,
-						label: `${rule.name}${rule.description ? ` - ${rule.description}` : ''}`,
-					})),
-				},
-			],
-			callback: async (event: CompanionActionEvent, _context) => {
-				if (!self.api) {
-					self.log('error', 'SmartThings API is not connected')
-					return
-				}
-
-				const ruleId = typeof event.options.ruleId === 'string' ? event.options.ruleId : ''
-
-				const rule = self.getRule(ruleId)
-
-				if (!rule) {
-					self.log('error', 'The selected SmartThings rule was not found. Re-select the rule in the action.')
-					return
-				}
-
-				try {
-					await self.api.executeRule(ruleId)
-
-					self.log('debug', `Executed rule: ${rule.name}`)
-				} catch (error) {
-					const message = error instanceof Error ? error.message : String(error)
-
-					self.log('error', `SmartThings rule execution failed: ${message}`)
-				}
-			},
-		},
+		}
 	}
 
+	actions.execute_rule = {
+		name: 'Execute SmartThings Rule',
+		description: 'Execute a rule from SmartThings',
+		options: [
+			{
+				id: 'ruleId',
+				type: 'dropdown',
+				label: 'Rule',
+				default: self.rules[0]?.id ?? '',
+				choices: self.rules.map((rule) => ({
+					id: rule.id,
+					label: `${rule.name}${rule.description ? ` - ${rule.description}` : ''}`,
+				})),
+			},
+		],
+		callback: async (event: CompanionActionEvent<{ ruleId: string }>, _context: CompanionActionContext) => {
+			if (!self.api) {
+				self.log('error', 'SmartThings API is not connected')
+				return
+			}
+
+			const ruleId = typeof event.options.ruleId === 'string' ? event.options.ruleId : ''
+
+			const rule = self.getRule(ruleId)
+
+			if (!rule) {
+				self.log('error', 'The selected SmartThings rule was not found. Re-select the rule in the action.')
+				return
+			}
+
+			try {
+				await self.api.executeRule(ruleId)
+
+				self.log('debug', `Executed rule: ${rule.name}`)
+			} catch (error) {
+				const message = error instanceof Error ? error.message : String(error)
+
+				self.log('error', `SmartThings rule execution failed: ${message}`)
+			}
+		},
+	}
 	self.setActionDefinitions(actions)
 }
