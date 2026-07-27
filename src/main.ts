@@ -19,6 +19,8 @@ import type { ActionsSchema } from './actions.js'
 import type { FeedbacksSchema } from './feedbacks.js'
 import type { VariablesSchema } from './variables.js'
 
+import { getDeviceLabel } from './device/index.js'
+
 export type ModuleSchema = {
 	config: ModuleConfig
 	secrets: undefined
@@ -181,7 +183,7 @@ export class SmartThingsInstance extends InstanceBase<ModuleSchema> {
 		}
 		/* Build one flat list of device commands for use by companion actions and feedbacks */
 		for (const device of this.devices) {
-			const deviceLabel = device.label || device.name || device.deviceId
+			const deviceLabel = getDeviceLabel(device)
 			for (const component of device.components ?? []) {
 				for (const capability of component.capabilities ?? []) {
 					const cacheKey = `${capability.id}:${capability.version}`

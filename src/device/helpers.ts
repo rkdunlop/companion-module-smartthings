@@ -1,7 +1,7 @@
 import type { SmartThingsDevice, SmartThingsDeviceComponent } from '../api/types.js'
 
 export function getDeviceLabel(device: SmartThingsDevice): string {
-	return device.label || device.name || device.deviceId
+	return getDeviceLabel(device)
 }
 
 export function getPrimaryComponent(device: SmartThingsDevice): undefined | SmartThingsDeviceComponent {

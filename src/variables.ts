@@ -1,4 +1,5 @@
 import type SmartThingsInstance from './main.js'
+import { getDeviceLabel } from './device/index.js'
 export type VariablesSchema = {
 	[key: string]: string
 }
@@ -18,7 +19,7 @@ export function UpdateVariableDefinitions(self: SmartThingsInstance): void {
 			.map((device) => [
 				switchVariableId(device.deviceId),
 				{
-					name: `${device.label || device.name || device.deviceId} switch state`,
+					name: `${getDeviceLabel(device)} switch state`,
 				},
 			]),
 	)

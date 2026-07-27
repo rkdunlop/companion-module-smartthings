@@ -5,6 +5,8 @@ import type {
 	DropdownChoice,
 } from '@companion-module/base'
 
+import { getDeviceLabel } from './device/index.js'
+
 import type { SmartThingsInstance } from './main.js'
 
 export type DeviceActionOptions = {
@@ -108,7 +110,7 @@ export function UpdateActions(self: SmartThingsInstance): void {
 	const actions = {} as CompanionActionDefinitions<ActionsSchema>
 
 	for (const device of self.devices) {
-		const deviceLabel = device.label || device.name || device.deviceId
+		const deviceLabel = getDeviceLabel(device)
 
 		const deviceCommands = self.discoveredCommands
 			.filter((command) => command.deviceId === device.deviceId)
