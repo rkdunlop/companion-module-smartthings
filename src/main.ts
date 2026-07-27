@@ -19,7 +19,7 @@ import type { ActionsSchema } from './actions.js'
 import type { FeedbacksSchema } from './feedbacks.js'
 import type { VariablesSchema } from './variables.js'
 
-import { getDeviceLabel } from './device/index.js'
+import { discoverCommands } from './discovery/commands.js'
 
 export type ModuleSchema = {
 	config: ModuleConfig
@@ -102,7 +102,12 @@ export class SmartThingsInstance extends InstanceBase<ModuleSchema> {
 
 	private async finishInitialization(locationId?: string): Promise<void> {
 		try {
-			await Promise.all([this.discoverCommands(), this.loadRules(locationId)])
+			const discoverResultPromise = discoverCommands(this.api!, this.devices, (message) => this.log('warn', message))
+
+			const [discoverResult] = await Promise.all([discoverResultPromise, this.loadRules(locationId)])
+
+			this.capabilities = discoverResult.capabilities
+			this.discoveredCommands = discoverResult.commands
 
 			this.initActions()
 			this.initFeedbacks()
@@ -163,85 +168,6 @@ export class SmartThingsInstance extends InstanceBase<ModuleSchema> {
 			clearInterval(this.pollTimer)
 			this.pollTimer = undefined
 		}
-	}
-
-	private async discoverCommands(): Promise<void> {
-		if (!this.api) {
-			return
-		}
-		this.capabilities.clear()
-		this.discoveredCommands = []
-
-		const requiredCapabilities = new Map<string, { id: string; version: number }>()
-
-		/* Build a unique list of required capabilities and their versions from all devices and components */
-		for (const device of this.devices) {
-			for (const component of device.components) {
-				for (const capabilityRef of component.capabilities) {
-					const key = `${capabilityRef.id}:${capabilityRef.version}`
-					if (!requiredCapabilities.has(key)) {
-						requiredCapabilities.set(key, { id: capabilityRef.id, version: capabilityRef.version })
-					}
-				}
-			}
-		}
-
-		/* Fetch the capability definitions for all required capabilities */
-		const results = await Promise.allSettled(
-			[...requiredCapabilities.entries()].map(async ([cacheKey, capability]) => {
-				const definition = await this.api!.getCapability(capability.id, capability.version)
-				return { cacheKey, definition }
-			}),
-		)
-
-		for (const result of results) {
-			if (result.status === 'fulfilled') {
-				this.capabilities.set(result.value.cacheKey, result.value.definition)
-				continue
-			}
-			const message = result.reason instanceof Error ? result.reason.message : String(result.reason)
-			this.log('warn', `Failed to fetch capability definition: ${message}`)
-		}
-		/* Build one flat list of device commands for use by companion actions and feedbacks */
-		for (const device of this.devices) {
-			const deviceLabel = getDeviceLabel(device)
-			for (const component of device.components ?? []) {
-				for (const capability of component.capabilities ?? []) {
-					const cacheKey = `${capability.id}:${capability.version}`
-					const definition = this.capabilities.get(cacheKey)
-
-					if (!definition?.commands) {
-						continue
-					}
-
-					for (const [commandName, commandDefinition] of Object.entries(definition.commands)) {
-						const key = [device.deviceId, component.id, capability.id, String(capability.version), commandName].join(
-							'|',
-						)
-
-						this.discoveredCommands.push({
-							key,
-							deviceId: device.deviceId,
-							deviceLabel,
-							componentId: component.id,
-							capabilityId: capability.id,
-							capabilityVersion: capability.version,
-							commandName,
-							arguments: commandDefinition.arguments ?? [],
-						})
-					}
-				}
-			}
-		}
-		this.discoveredCommands.sort((a, b) => {
-			return (
-				a.deviceLabel.localeCompare(b.deviceLabel) ||
-				a.capabilityId.localeCompare(b.capabilityId) ||
-				a.commandName.localeCompare(b.commandName)
-			)
-		})
-
-		this.log('info', `Discovered ${this.discoveredCommands.length} SmartThings commands`)
 	}
 
 	public getDiscoveredCommand(commandKey: string): SmartThingsDiscoveredCommand | undefined {
