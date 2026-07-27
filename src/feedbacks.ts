@@ -7,7 +7,7 @@ import type {
 	DropdownChoice,
 } from '@companion-module/base'
 
-import { getDeviceLabel } from './device/index.js'
+import { getDeviceLabel, hasCapability } from './device/index.js'
 
 export type SwitchStateFeedbackOptions = CompanionOptionValues & {
 	deviceId: string
@@ -19,9 +19,7 @@ export type FeedbacksSchema = {
 }
 
 export function UpdateFeedbacks(self: SmartThingsInstance): void {
-	const switchDevices = self.devices.filter((device) =>
-		device.components?.some((component) => component.capabilities?.some((capability) => capability.id === 'switch')),
-	)
+	const switchDevices = self.devices.filter((device) => hasCapability(device, 'switch'))
 	const deviceChoices: DropdownChoice[] = switchDevices.map((device) => ({
 		id: device.deviceId,
 		label: getDeviceLabel(device),

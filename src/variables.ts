@@ -1,5 +1,5 @@
 import type SmartThingsInstance from './main.js'
-import { getDeviceLabel } from './device/index.js'
+import { getDeviceLabel, hasCapability } from './device/index.js'
 export type VariablesSchema = {
 	[key: string]: string
 }
@@ -11,11 +11,7 @@ function switchVariableId(deviceId: string): string {
 export function UpdateVariableDefinitions(self: SmartThingsInstance): void {
 	const definitions = Object.fromEntries(
 		self.devices
-			.filter((device) =>
-				device.components?.some((component) =>
-					component.capabilities?.some((capability) => capability.id === 'switch'),
-				),
-			)
+			.filter((device) => hasCapability(device, 'switch'))
 			.map((device) => [
 				switchVariableId(device.deviceId),
 				{
