@@ -77,8 +77,6 @@ export class SmartThingsInstance extends InstanceBase<ModuleSchema> {
 				this.devices = await this.api.getDevices()
 			}
 
-			await Promise.all([this.discoverCommands(), this.loadRules(config.locationId)])
-
 			this.initActions()
 			this.initFeedbacks()
 			this.initVariables()
@@ -86,15 +84,31 @@ export class SmartThingsInstance extends InstanceBase<ModuleSchema> {
 
 			this.updateStatus(InstanceStatus.Ok)
 
-			void this.pollStatus().finally(() => {
-				this.startPolling()
-			})
+			void this.finishInitialization(config.locationId)
 		} catch (error) {
 			const message = error instanceof Error ? error.message : String(error)
 			const badConfig = message === 'Selected location is not available. Please choose a valid location.'
 
 			this.log('error', message)
 			this.updateStatus(badConfig ? InstanceStatus.BadConfig : InstanceStatus.ConnectionFailure, message)
+		}
+	}
+
+	private async finishInitialization(locationId?: string): Promise<void> {
+		try {
+			await Promise.all([this.discoverCommands(), this.loadRules(locationId)])
+
+			this.initActions()
+			this.initFeedbacks()
+			this.initVariables()
+			this.initPresets()
+
+			await this.pollStatus()
+		} catch (error) {
+			const message = error instanceof Error ? error.message : String(error)
+			this.log('error', `Background initialization failed: ${message}`)
+		} finally {
+			this.startPolling()
 		}
 	}
 
@@ -130,6 +144,7 @@ export class SmartThingsInstance extends InstanceBase<ModuleSchema> {
 	}
 
 	private startPolling(): void {
+		this.stopPolling()
 		const interval = Math.max(1000, this.config.pollInterval || 5000)
 
 		this.pollTimer = setInterval(() => {
@@ -232,7 +247,9 @@ export class SmartThingsInstance extends InstanceBase<ModuleSchema> {
 	}
 
 	private async loadRules(locationId?: string): Promise<void> {
-		if (!this.api) {
+		if (!this.api || !locationId) {
+			this.rules = []
+			this.log('debug', 'No locationId provided, skipping rule loading')
 			return
 		}
 
