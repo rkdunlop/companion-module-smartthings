@@ -54,6 +54,12 @@ export class SmartThingsInstance extends InstanceBase<ModuleSchema> {
 	public async configUpdated(config: ModuleConfig, _secrets: undefined): Promise<void> {
 		this.config = config
 		this.stopPolling()
+		this.devices = []
+		this.locations = []
+		this.capabilities.clear()
+		this.discoveredCommands = []
+		this.rules = []
+		this.deviceStatus.clear()
 
 		if (!config.token) {
 			this.updateStatus(InstanceStatus.BadConfig, 'Token required')
