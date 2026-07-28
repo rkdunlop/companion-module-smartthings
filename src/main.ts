@@ -18,6 +18,8 @@ import { UpgradeScripts } from './upgrades.js'
 import type { ActionsSchema } from './actions.js'
 import type { FeedbacksSchema } from './feedbacks.js'
 import type { VariablesSchema } from './variables.js'
+import type { SmartThingsDeviceStatus } from './device/index.js'
+import { getSwitchState } from './device/index.js'
 
 import { discoverCommands } from './discovery/commands.js'
 
@@ -43,7 +45,7 @@ export class SmartThingsInstance extends InstanceBase<ModuleSchema> {
 	public discoveredCommands: SmartThingsDiscoveredCommand[] = []
 	public rules: SmartThingsRule[] = []
 
-	public deviceStatus: Map<string, unknown> = new Map()
+	public deviceStatus: Map<string, SmartThingsDeviceStatus> = new Map()
 
 	private pollTimer?: NodeJS.Timeout
 
@@ -238,10 +240,10 @@ export class SmartThingsInstance extends InstanceBase<ModuleSchema> {
 	}
 
 	private updateDeviceVariables(deviceId: string): void {
-		const state = this.getAttribute(deviceId, 'switch', 'switch', 'main')
-
+		const status = this.deviceStatus.get(deviceId)
+		const state = getSwitchState(status)
 		this.setVariableValues({
-			[`device_${deviceId}_switch`]: typeof state === 'string' ? state : 'unknown',
+			[`device_${deviceId}_switch`]: state ?? 'unknown',
 		})
 	}
 

@@ -13,13 +13,32 @@ export type SmartThingsDeviceStatus = {
 	>
 }
 
-export async function getAttribute(
-	deviceId: string,
+export type SwitchState = 'on' | 'off'
+
+export function getAttribute(
+	status: SmartThingsDeviceStatus | undefined,
 	capability: string,
 	attribute: string,
 	component = 'main',
 ): unknown {
-	const status = await api.getDeviceStatus(deviceId)
-
 	return status?.components?.[component]?.[capability]?.[attribute]?.value
+}
+
+export function getSwitchState(
+	status: SmartThingsDeviceStatus | undefined,
+	component = 'main',
+): 'on' | 'off' | undefined {
+	const value = getAttribute(status, 'switch', 'switch', component)
+
+	if (value === 'on' || value === 'off') {
+		return value
+	}
+
+	return undefined
+}
+
+export function isSwitchOn(status: SmartThingsDeviceStatus | undefined, component = 'main'): boolean | undefined {
+	const state = getSwitchState(status, component)
+
+	return state === 'on'
 }

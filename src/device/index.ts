@@ -1,7 +1,2 @@
-export {
-	getDeviceLabel,
-	getPrimaryComponent,
-	hasCapability,
-	getComponentWithCapability,
-	getCapabilities,
-} from './helpers.js'
+export * from './helpers.js'
+export * from './state.js'

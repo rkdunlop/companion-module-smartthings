@@ -201,9 +201,8 @@ export function UpdateActions(self: SmartThingsInstance): void {
 
 					const refreshAndLog = (): void => {
 						void self.refreshDeviceStatus(device.deviceId).then(() => {
-							const resultingSwitchState = self.getAttribute(device.deviceId, 'switch', 'switch', command.componentId)
-
-							self.log('debug', `Switch state after command: ${resultingSwitchState}`)
+							//const resultingSwitchState = self.getAttribute(device.deviceId, 'switch', 'switch', command.componentId)
+							//self.log('debug', `Switch state after command: ${resultingSwitchState}`)
 						})
 					}
 					setTimeout(refreshAndLog, 2000)

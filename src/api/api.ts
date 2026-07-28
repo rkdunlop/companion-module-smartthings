@@ -11,6 +11,7 @@ import type {
 	SmartThingsRule,
 	SmartThingsRuleExecution,
 } from './types.js'
+import type { SmartThingsDeviceStatus } from '../device/index.js'
 
 export class SmartThingsApi {
 	private readonly devicesApi: SmartThingsDevicesApi
@@ -37,7 +38,7 @@ export class SmartThingsApi {
 		return this.devicesApi.getDevicesByLocation(locationId)
 	}
 
-	public async getDeviceStatus(deviceId: string): Promise<unknown> {
+	public async getDeviceStatus(deviceId: string): Promise<SmartThingsDeviceStatus> {
 		return this.devicesApi.getDeviceStatus(deviceId)
 	}
 

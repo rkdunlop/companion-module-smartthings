@@ -1,6 +1,7 @@
 import type { SmartThingsCommand, SmartThingsCommandResponse, SmartThingsDevice, SmartThingsLocation } from './types.js'
 
 import type { SmartThingsClient } from './client.js'
+import type { SmartThingsDeviceStatus } from '../device/state.js'
 
 interface SmartThingsListResponse<T> {
 	items: T[]
@@ -29,8 +30,8 @@ export class SmartThingsDevicesApi {
 		return response.items
 	}
 
-	public async getDeviceStatus(deviceId: string): Promise<unknown> {
-		return this.client.request(`/devices/${encodeURIComponent(deviceId)}/status`)
+	public async getDeviceStatus(deviceId: string): Promise<SmartThingsDeviceStatus> {
+		return this.client.request<SmartThingsDeviceStatus>(`/devices/${encodeURIComponent(deviceId)}/status`)
 	}
 
 	public async executeCommands(deviceId: string, commands: SmartThingsCommand[]): Promise<SmartThingsCommandResponse> {
