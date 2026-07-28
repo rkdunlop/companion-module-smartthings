@@ -236,26 +236,6 @@ export class SmartThingsInstance extends InstanceBase<ModuleSchema> {
 			this.log('warn', `Failed to refresh device status for ${deviceId}: ${message}`)
 		}
 	}
-	public getAttribute(deviceId: string, capability: string, attribute: string, component = 'main'): unknown {
-		const status = this.deviceStatus.get(deviceId) as
-			| {
-					components?: Record<
-						string,
-						Record<
-							string,
-							Record<
-								string,
-								{
-									value?: unknown
-								}
-							>
-						>
-					>
-			  }
-			| undefined
-
-		return status?.components?.[component]?.[capability]?.[attribute]?.value
-	}
 
 	private updateDeviceVariables(deviceId: string): void {
 		const state = this.getAttribute(deviceId, 'switch', 'switch', 'main')
