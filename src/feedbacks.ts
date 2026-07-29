@@ -7,8 +7,7 @@ import type {
 	DropdownChoice,
 } from '@companion-module/base'
 
-import { getDeviceLabel, hasCapability } from './device/index.js'
-
+import { getDeviceLabel, hasCapability, isSwitchOn } from './device/index.js'
 export type SwitchStateFeedbackOptions = CompanionOptionValues & {
 	deviceId: string
 	componentId: string
@@ -61,8 +60,8 @@ export function UpdateFeedbacks(self: SmartThingsInstance): void {
 						? feedback.options.componentId
 						: 'main'
 
-				const switchState = self.getAttribute(deviceId, 'switch', 'switch', componentId)
-				return switchState === 'on'
+				const status = self.deviceStatus.get(deviceId)
+				return isSwitchOn(status, componentId) ?? false
 			},
 		},
 	})
