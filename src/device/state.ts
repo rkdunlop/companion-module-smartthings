@@ -38,7 +38,5 @@ export function getSwitchState(
 }
 
 export function isSwitchOn(status: SmartThingsDeviceStatus | undefined, component = 'main'): boolean | undefined {
-	const state = getSwitchState(status, component)
-
-	return state === 'on'
+	return getSwitchState(status, component) === 'on'
 }
