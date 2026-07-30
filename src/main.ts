@@ -22,6 +22,7 @@ import type { SmartThingsDeviceStatus } from './device/index.js'
 import { getSwitchState } from './device/index.js'
 
 import { discoverCommands } from './discovery/commands.js'
+import { PatTokenProvider } from './auth/pat-token-provider.js'
 
 export type ModuleSchema = {
 	config: ModuleConfig
@@ -69,7 +70,8 @@ export class SmartThingsInstance extends InstanceBase<ModuleSchema> {
 			return
 		}
 		if (config.authMode === 'pat') {
-			this.api = new SmartThingsApi(config.patToken)
+			const tokenProvider = new PatTokenProvider(config.patToken)
+			this.api = new SmartThingsApi(tokenProvider)
 		} else {
 			this.updateStatus(InstanceStatus.BadConfig, 'OAuth authentication is not implemented yet')
 			return

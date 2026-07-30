@@ -1,21 +1,24 @@
+import type { TokenProvider } from '../auth/token-provider.js'
+
 export class SmartThingsClient {
 	private readonly baseUrl = 'https://api.smartthings.com/v1'
-	private readonly token: string
+	private readonly tokenProvider: TokenProvider
 
-	public constructor(token: string) {
-		this.token = token.trim()
+	public constructor(tokenProvider: TokenProvider) {
+		this.tokenProvider = tokenProvider
 	}
 
 	public async request<T>(path: string, options: RequestInit = {}): Promise<T> {
 		const maxRetries = 5
 		let attempt = 0
+		const token = (await this.tokenProvider.getAccessToken()).trim()
 
 		while (true) {
 			const response = await fetch(`${this.baseUrl}${path}`, {
 				...options,
 				headers: {
 					Accept: 'application/json',
-					Authorization: `Bearer ${this.token}`,
+					Authorization: `Bearer ${token}`,
 					'Content-Type': 'application/json',
 					...options.headers,
 				},

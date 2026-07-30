@@ -12,14 +12,15 @@ import type {
 	SmartThingsRuleExecution,
 } from './types.js'
 import type { SmartThingsDeviceStatus } from '../device/index.js'
+import type { TokenProvider } from '../auth/token-provider.js'
 
 export class SmartThingsApi {
 	private readonly devicesApi: SmartThingsDevicesApi
 	private readonly capabilitiesApi: SmartThingsCapabilityApi
 	private readonly rulesApi: SmartThingsRulesApi
 
-	public constructor(token: string) {
-		const client = new SmartThingsClient(token)
+	public constructor(tokenProvider: TokenProvider) {
+		const client = new SmartThingsClient(tokenProvider)
 
 		this.devicesApi = new SmartThingsDevicesApi(client)
 		this.capabilitiesApi = new SmartThingsCapabilityApi(client)
