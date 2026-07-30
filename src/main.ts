@@ -8,7 +8,7 @@ import {
 	type SmartThingsDiscoveredCommand,
 	type SmartThingsRule,
 } from './api/api.js'
-import type { ModuleConfig } from './config.js'
+import type { ModuleConfig, ModuleSecrets } from './config.js'
 import { GetConfigFields } from './config.js'
 import { UpdateActions } from './actions.js'
 import { UpdateFeedbacks } from './feedbacks.js'
@@ -25,7 +25,7 @@ import { discoverCommands } from './discovery/commands.js'
 
 export type ModuleSchema = {
 	config: ModuleConfig
-	secrets: undefined
+	secrets: ModuleSecrets
 	actions: ActionsSchema
 	feedbacks: FeedbacksSchema
 	variables: VariablesSchema
@@ -49,11 +49,11 @@ export class SmartThingsInstance extends InstanceBase<ModuleSchema> {
 
 	private pollTimer?: NodeJS.Timeout
 
-	public async init(config: ModuleConfig, _isFirstInit: boolean, _secrets: undefined): Promise<void> {
+	public async init(config: ModuleConfig, _isFirstInit: boolean, _secrets: ModuleSecrets): Promise<void> {
 		await this.configUpdated(config, _secrets)
 	}
 
-	public async configUpdated(config: ModuleConfig, _secrets: undefined): Promise<void> {
+	public async configUpdated(config: ModuleConfig, _secrets: ModuleSecrets): Promise<void> {
 		this.config = config
 		this.stopPolling()
 		this.devices = []
