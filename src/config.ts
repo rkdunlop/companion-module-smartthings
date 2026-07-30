@@ -9,20 +9,6 @@ export interface ModuleConfig {
 	locationId: string
 }
 
-export type ModuleSecrets = PatSecrets | OauthSecrets
-
-export interface PatSecrets {
-	type: 'pat'
-	token: string
-}
-
-export interface OauthSecrets {
-	type: 'oauth'
-	accessToken: string
-	refreshToken: string
-	expiresAt: number
-}
-
 export function GetConfigFields(): SomeCompanionConfigField[] {
 	return [
 		{
@@ -37,7 +23,7 @@ export function GetConfigFields(): SomeCompanionConfigField[] {
 			id: 'authMode',
 			label: 'Authentication method',
 			width: 12,
-			default: 'oauth',
+			default: 'pat',
 			choices: [
 				{ id: 'oauth', label: 'SmartThings account' },
 				{ id: 'pat', label: 'Development PAT' },
