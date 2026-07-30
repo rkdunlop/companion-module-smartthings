@@ -1,19 +1,14 @@
 import { type SomeCompanionConfigField } from '@companion-module/base'
 
 export interface ModuleConfig {
-	authmode: 'oauth' | 'token'
+	authMode: 'oauth' | 'token'
 	token: string
 	pollInterval: number
 	locationId: string
 	[x: string]: string | number | boolean
 }
 
-export interface ModuleSecrets {
-	patToken?: string
-	accessToken?: string
-	refreshToken?: string
-	expiresAt?: number
-}
+export type ModuleSecrets = PatSecrets | OauthSecrets
 
 export interface PatSecrets {
 	type: 'pat'
