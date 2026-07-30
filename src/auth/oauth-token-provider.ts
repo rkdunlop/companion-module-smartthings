@@ -1,32 +1,39 @@
 import type { TokenProvider } from './token-provider.js'
 import { OAuthClient, type OAuthTokens } from './oauth-client.js'
 
+export type TokenUpdateHandler = (tokens: OAuthTokens) => Promise<void> | void
+
 export class OAuthTokenProvider implements TokenProvider {
-	private accessToken?: string
-	private refreshToken?: string
-	private expiresAt = 0
+	private tokens?: OAuthTokens
 
 	public constructor(
 		private readonly oauthclient: OAuthClient,
 		tokens?: OAuthTokens,
+		private readonly onTokensUpdated?: TokenUpdateHandler,
 	) {
-		this.accessToken = tokens?.accessToken
-		this.refreshToken = tokens?.refreshToken
-		this.expiresAt = tokens?.expiresAt ?? 0
+		this.tokens = tokens ?? {
+			accessToken: '',
+			refreshToken: '',
+			expiresAt: 0,
+			installedAppId: '',
+			grantedScopes: [],
+		}
 	}
 
 	public async getAccessToken(): Promise<string> {
-		if (!this.accessToken || !this.refreshToken) {
+		if (!this.tokens) {
 			throw Error('NO ACCESS TOKEN')
 		}
 
-		if (this.expiresAt <= Date.now()) {
-			const tokens = await this.oauthclient.refreshAccessToken(this.refreshToken)
+		if (this.tokens.expiresAt <= Date.now()) {
+			this.tokens = await this.oauthclient.refreshAccessToken(this.tokens.refreshToken)
 
-			this.accessToken = tokens.accessToken
-			this.refreshToken = tokens.refreshToken
-			this.expiresAt = tokens.expiresAt
+			await this.onTokensUpdated?.(this.tokens)
 		}
-		return this.accessToken
+		return this.tokens.accessToken
+	}
+
+	public setTokens(tokens: OAuthTokens): void {
+		this.tokens = tokens
 	}
 }
