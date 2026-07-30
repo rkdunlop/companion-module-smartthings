@@ -1,15 +1,17 @@
-import type { TokenProvider } from './token-provider.js'
+export interface OAuthTokens {
+	accessToken: string
+	refreshToken: string
+	expiresAt: number
+}
 
 export class OAuthClient {
-	public constructor(private readonly tokenProvider: TokenProvider) {}
+	public buildAuthorizationUrl(): string {}
 
-	private buildAuthorizationUrl() {}
-
-	private exchangeAuthorizaitonCode() {
+	public async exchangeAuthorizationCode(_code: string): Promise<OAuthTokens> {
 		throw new Error('Not Implemented')
 	}
 
-	private refreshAccessToken() {
+	public async refreshAccessToken(_refreshToken: string): Promise<OAuthTokens> {
 		throw new Error('Not Implemented')
 	}
 }

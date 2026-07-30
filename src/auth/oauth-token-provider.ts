@@ -5,8 +5,6 @@ export class OAuthTokenProvider implements TokenProvider {
 	private refreshToken?: string
 	private expiresAt = 0
 
-	public constructor() {}
-
 	public async getAccessToken(): Promise<string> {
 		throw new Error('OAuth authentication has not been completed.')
 	}
