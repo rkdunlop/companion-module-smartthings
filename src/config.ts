@@ -1,11 +1,12 @@
 import { type SomeCompanionConfigField } from '@companion-module/base'
 
 export interface ModuleConfig {
-	authMode: 'oauth' | 'token'
-	token: string
+	[key: string]: string | number | boolean
+
+	authMode: 'oauth' | 'pat'
+	patToken: string
 	pollInterval: number
 	locationId: string
-	[x: string]: string | number | boolean
 }
 
 export type ModuleSecrets = PatSecrets | OauthSecrets
@@ -25,11 +26,22 @@ export interface OauthSecrets {
 export function GetConfigFields(): SomeCompanionConfigField[] {
 	return [
 		{
-			type: 'textinput',
-			id: 'token',
-			label: 'SmartThings Access Token',
+			type: 'secret-text',
+			id: 'patToken',
+			label: 'SmartThings Development Token',
 			width: 12,
 			default: '',
+		},
+		{
+			type: 'dropdown',
+			id: 'authMode',
+			label: 'Authentication method',
+			width: 12,
+			default: 'oauth',
+			choices: [
+				{ id: 'oauth', label: 'SmartThings account' },
+				{ id: 'pat', label: 'Development PAT' },
+			],
 		},
 		{
 			type: 'number',

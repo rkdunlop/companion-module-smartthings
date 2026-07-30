@@ -8,7 +8,7 @@ import {
 	type SmartThingsDiscoveredCommand,
 	type SmartThingsRule,
 } from './api/api.js'
-import type { ModuleConfig, ModuleSecrets } from './config.js'
+import type { ModuleConfig } from './config.js'
 import { GetConfigFields } from './config.js'
 import { UpdateActions } from './actions.js'
 import { UpdateFeedbacks } from './feedbacks.js'
@@ -25,7 +25,7 @@ import { discoverCommands } from './discovery/commands.js'
 
 export type ModuleSchema = {
 	config: ModuleConfig
-	secrets: ModuleSecrets
+	secrets: undefined
 	actions: ActionsSchema
 	feedbacks: FeedbacksSchema
 	variables: VariablesSchema
@@ -33,7 +33,8 @@ export type ModuleSchema = {
 
 export class SmartThingsInstance extends InstanceBase<ModuleSchema> {
 	public config: ModuleConfig = {
-		token: '',
+		authMode: 'pat',
+		patToken: '',
 		pollInterval: 5000,
 		locationId: '',
 	}
@@ -49,11 +50,11 @@ export class SmartThingsInstance extends InstanceBase<ModuleSchema> {
 
 	private pollTimer?: NodeJS.Timeout
 
-	public async init(config: ModuleConfig, _isFirstInit: boolean, _secrets: ModuleSecrets): Promise<void> {
+	public async init(config: ModuleConfig, _isFirstInit: boolean, _secrets: undefined): Promise<void> {
 		await this.configUpdated(config, _secrets)
 	}
 
-	public async configUpdated(config: ModuleConfig, _secrets: ModuleSecrets): Promise<void> {
+	public async configUpdated(config: ModuleConfig, _secrets: undefined): Promise<void> {
 		this.config = config
 		this.stopPolling()
 		this.devices = []
@@ -63,12 +64,16 @@ export class SmartThingsInstance extends InstanceBase<ModuleSchema> {
 		this.rules = []
 		this.deviceStatus.clear()
 
-		if (!config.token) {
-			this.updateStatus(InstanceStatus.BadConfig, 'Token required')
+		if (config.authMode === 'pat' && !config.patToken) {
+			this.updateStatus(InstanceStatus.BadConfig, 'SmartThings PAT required')
 			return
 		}
-
-		this.api = new SmartThingsApi(config.token)
+		if (config.authMode === 'pat') {
+			this.api = new SmartThingsApi(config.patToken)
+		} else {
+			this.updateStatus(InstanceStatus.BadConfig, 'OAuth authentication is not implemented yet')
+			return
+		}
 
 		try {
 			this.updateStatus(InstanceStatus.Connecting)
