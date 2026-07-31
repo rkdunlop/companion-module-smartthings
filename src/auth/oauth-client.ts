@@ -24,7 +24,7 @@ export class OAuthClient {
 	) {}
 
 	public buildAuthorizationUrl(state: string): URL {
-		const url = new URL('https://api.smarthings.com/v1/oauth/authorize')
+		const url = new URL('https://api.smartthings.com/v1/oauth/authorize')
 
 		url.searchParams.set('client_id', this.clientId)
 		url.searchParams.set('scope', this.scopes.join(' '))

@@ -4,21 +4,11 @@ import { OAuthClient, type OAuthTokens } from './oauth-client.js'
 export type TokenUpdateHandler = (tokens: OAuthTokens) => Promise<void> | void
 
 export class OAuthTokenProvider implements TokenProvider {
-	private tokens?: OAuthTokens
-
 	public constructor(
 		private readonly oauthclient: OAuthClient,
-		tokens?: OAuthTokens,
+		private tokens?: OAuthTokens,
 		private readonly onTokensUpdated?: TokenUpdateHandler,
-	) {
-		this.tokens = tokens ?? {
-			accessToken: '',
-			refreshToken: '',
-			expiresAt: 0,
-			installedAppId: '',
-			grantedScopes: [],
-		}
-	}
+	) {}
 
 	public async getAccessToken(): Promise<string> {
 		if (!this.tokens) {
@@ -33,7 +23,16 @@ export class OAuthTokenProvider implements TokenProvider {
 		return this.tokens.accessToken
 	}
 
-	public setTokens(tokens: OAuthTokens): void {
+	public async setTokens(tokens: OAuthTokens): Promise<void> {
 		this.tokens = tokens
+		await this.onTokensUpdated?.(tokens)
+	}
+
+	public clearTokens(): void {
+		this.tokens = undefined
+	}
+
+	public isAuthenticated(): boolean {
+		return this.tokens !== undefined
 	}
 }
