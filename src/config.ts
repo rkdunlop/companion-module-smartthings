@@ -70,8 +70,8 @@ export function GetConfigFields(): SomeCompanionConfigField[] {
 		},
 		{
 			type: 'textinput',
-			id: 'oauthAuthroizationResponse',
-			label: 'Authorization Code',
+			id: 'oauthAuthorizationResponse',
+			label: 'Authorization Response',
 			width: 12,
 			default: '',
 		},
