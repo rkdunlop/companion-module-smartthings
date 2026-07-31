@@ -1,4 +1,5 @@
 import { type SomeCompanionConfigField } from '@companion-module/base'
+import { SMARTTHINGS_OAUTH_REDIRECT_URI } from './auth/constants.js'
 
 export interface ModuleConfig {
 	[key: string]: string | number | boolean
@@ -7,6 +8,12 @@ export interface ModuleConfig {
 	patToken: string
 	pollInterval: number
 	locationId: string
+
+	oauthClientId: string
+	oauthClientSecret: string
+	oauthAuthorizationResponse: string
+	oauthPendingState: string
+	oauthPendingStateExpiresAt: number
 }
 
 export function GetConfigFields(): SomeCompanionConfigField[] {
@@ -46,6 +53,34 @@ export function GetConfigFields(): SomeCompanionConfigField[] {
 			choices: [{ id: '', label: 'All locations' }],
 			default: '',
 			allowCustom: false,
+		},
+		{
+			type: 'textinput',
+			id: 'oauthClientId',
+			label: 'Client ID',
+			width: 12,
+			default: '',
+		},
+		{
+			type: 'secret-text',
+			id: 'oauthClientSecret',
+			label: 'Client Secret',
+			width: 12,
+			default: '',
+		},
+		{
+			type: 'textinput',
+			id: 'oauthAuthroizationResponse',
+			label: 'Authorization Code',
+			width: 12,
+			default: '',
+		},
+		{
+			id: 'oauthRedirectURI',
+			type: 'static-text',
+			label: 'OAuth Redirect URI',
+			value: SMARTTHINGS_OAUTH_REDIRECT_URI,
+			width: 12,
 		},
 	]
 }

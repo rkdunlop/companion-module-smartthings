@@ -38,6 +38,11 @@ export class SmartThingsInstance extends InstanceBase<ModuleSchema> {
 		patToken: '',
 		pollInterval: 5000,
 		locationId: '',
+		oauthClientId: '',
+		oauthClientSecret: '',
+		oauthAuthorizationResponse: '',
+		oauthPendingState: '',
+		oauthPendingStateExpiresAt: 0,
 	}
 
 	public api?: SmartThingsApi
