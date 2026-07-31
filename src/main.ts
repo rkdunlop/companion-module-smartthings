@@ -24,6 +24,21 @@ import { getSwitchState } from './device/index.js'
 import { discoverCommands } from './discovery/commands.js'
 import { PatTokenProvider } from './auth/pat-token-provider.js'
 
+import { OAuthClient } from './auth/oauth-client.js'
+import { OAuthManager } from './auth/oauth-manager.js'
+import { OAuthTokenProvider } from './auth/oauth-token-provider.js'
+import { SMARTTHINGS_OAUTH_REDIRECT_URI } from './auth/constants.js'
+
+const SMARTTHINGS_OAUTH_SCOPES = [
+	'r:locations:*',
+	'r:devices:*',
+	'x:devices:*',
+	'r:scenes:*',
+	'x:scenes:*',
+	'r:rules:*',
+	'w:rules:*',
+]
+
 export type ModuleSchema = {
 	config: ModuleConfig
 	secrets: undefined
@@ -56,6 +71,10 @@ export class SmartThingsInstance extends InstanceBase<ModuleSchema> {
 
 	private pollTimer?: NodeJS.Timeout
 
+	private oauthClient?: OAuthClient
+	private oauthTokenProvider?: OAuthTokenProvider
+	private oauthManager?: OAuthManager
+
 	public async init(config: ModuleConfig, _isFirstInit: boolean, _secrets: undefined): Promise<void> {
 		await this.configUpdated(config, _secrets)
 	}
@@ -74,11 +93,19 @@ export class SmartThingsInstance extends InstanceBase<ModuleSchema> {
 			this.updateStatus(InstanceStatus.BadConfig, 'SmartThings PAT required')
 			return
 		}
-		if (config.authMode === 'pat') {
-			const tokenProvider = new PatTokenProvider(config.patToken)
-			this.api = new SmartThingsApi(tokenProvider)
-		} else {
-			this.updateStatus(InstanceStatus.BadConfig, 'OAuth authentication is not implemented yet')
+		try {
+			if (config.authMode === 'pat') {
+				const tokenProvider = new PatTokenProvider(config.patToken)
+				this.api = new SmartThingsApi(tokenProvider)
+			} else {
+				this.initializeOAuth(config)
+
+				this.updateStatus(InstanceStatus.BadConfig, 'SmartThings OAuth authorization required')
+			}
+		} catch {
+			const message = error instanceof Error ? error.message : String(error)
+
+			this.updateStatus(InstanceStatus.BadConfig, message)
 			return
 		}
 
@@ -112,6 +139,42 @@ export class SmartThingsInstance extends InstanceBase<ModuleSchema> {
 			this.log('error', message)
 			this.updateStatus(badConfig ? InstanceStatus.BadConfig : InstanceStatus.ConnectionFailure, message)
 		}
+	}
+
+	private initializeOAuth(config: ModuleConfig): void {
+		if (!config.oauthClientId.trim()) {
+			throw new Error('SmartThings OAuth Client ID required')
+		}
+
+		if (!config.oauthClientSecret.trim()) {
+			throw new Error('SmartThings OAuth Client Secret Required')
+		}
+
+		this.oauthClient = new OAuthClient(
+			config.oauthClientId,
+			config.oauthClientSecret,
+			SMARTTHINGS_OAUTH_REDIRECT_URI,
+			SMARTTHINGS_OAUTH_SCOPES,
+		)
+
+		this.oauthTokenProvider = new OAuthTokenProvider(this.oauthClient)
+
+		this.oauthManager = new OAuthManager(this.oauthClient, this.oauthTokenProvider)
+
+		this.api = new SmartThingsApi(this.oauthTokenProvider)
+	}
+
+	public beginOAuthAuthorization(): URL {
+		if (!this.oauthManager) {
+			throw new Error('SmartThings OAuth is not configured')
+		}
+
+		const pending = this.oauthManager.beginAuthorization()
+
+		this.config.oauthPendingState = pending.state
+		this.config.oauthPendingStateExpiresAt = pending.expiresAt
+
+		return pending.authorizationUrl
 	}
 
 	private async finishInitialization(locationId?: string): Promise<void> {
