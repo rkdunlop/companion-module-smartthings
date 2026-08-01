@@ -97,9 +97,8 @@ export class SmartThingsInstance extends InstanceBase<ModuleSchema> {
 				if (!authenticated) {
 					this.beginOAuthAuthorization()
 					this.updateStatus(InstanceStatus.BadConfig, 'Open the authorization URL shown in the log')
+					return
 				}
-
-				return
 			}
 		} catch (error) {
 			const message = error instanceof Error ? error.message : String(error)
@@ -110,17 +109,23 @@ export class SmartThingsInstance extends InstanceBase<ModuleSchema> {
 
 		try {
 			this.updateStatus(InstanceStatus.Connecting)
+
+			const api = this.api
+
+			if (!api) {
+				throw new Error('SmartThings API has not been initialized')
+			}
 			//Fetch all locations
-			this.locations = await this.api.getLocations()
+			this.locations = await api.getLocations()
 
 			if (config.locationId) {
 				const selectedLocation = this.locations.find((location) => location.locationId === config.locationId)
 				if (!selectedLocation) {
 					throw new Error('Selected location is not available. Please choose a valid location.')
 				}
-				this.devices = await this.api.getDevicesByLocation(config.locationId)
+				this.devices = await api.getDevicesByLocation(config.locationId)
 			} else {
-				this.devices = await this.api.getDevices()
+				this.devices = await api.getDevices()
 			}
 
 			this.initActions()
@@ -162,6 +167,7 @@ export class SmartThingsInstance extends InstanceBase<ModuleSchema> {
 
 		const authorizationResponse = config.oauthAuthorizationResponse?.trim()
 
+		this.log('info', `Authorization response length: ${config.oauthAuthorizationResponse?.length ?? 0}`)
 		if (!authorizationResponse) {
 			return false
 		}
