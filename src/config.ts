@@ -5,17 +5,20 @@ export interface ModuleConfig {
 	[key: string]: string | number | boolean
 
 	authMode: 'oauth' | 'pat'
-	patToken: string
 	pollInterval: number
 	locationId: string
 
 	oauthClientId: string
-	oauthClientSecret: string
 	oauthAuthorizationResponse: string
 	oauthPendingState: string
 	oauthPendingStateExpiresAt: number
 }
 
+export interface ModuleSecrets {
+	[key: string]: string
+	oauthClientSecret: string
+	patToken: string
+}
 export function GetConfigFields(): SomeCompanionConfigField[] {
 	return [
 		{

@@ -8,7 +8,7 @@ import {
 	type SmartThingsDiscoveredCommand,
 	type SmartThingsRule,
 } from './api/api.js'
-import type { ModuleConfig } from './config.js'
+import type { ModuleConfig, ModuleSecrets } from './config.js'
 import { GetConfigFields } from './config.js'
 import { UpdateActions } from './actions.js'
 import { UpdateFeedbacks } from './feedbacks.js'
@@ -41,7 +41,7 @@ const SMARTTHINGS_OAUTH_SCOPES = [
 
 export type ModuleSchema = {
 	config: ModuleConfig
-	secrets: undefined
+	secrets: ModuleSecrets
 	actions: ActionsSchema
 	feedbacks: FeedbacksSchema
 	variables: VariablesSchema
@@ -50,11 +50,9 @@ export type ModuleSchema = {
 export class SmartThingsInstance extends InstanceBase<ModuleSchema> {
 	public config: ModuleConfig = {
 		authMode: 'pat',
-		patToken: '',
 		pollInterval: 5000,
 		locationId: '',
 		oauthClientId: '',
-		oauthClientSecret: '',
 		oauthAuthorizationResponse: '',
 		oauthPendingState: '',
 		oauthPendingStateExpiresAt: 0,
@@ -75,11 +73,17 @@ export class SmartThingsInstance extends InstanceBase<ModuleSchema> {
 	private oauthTokenProvider?: OAuthTokenProvider
 	private oauthManager?: OAuthManager
 
-	public async init(config: ModuleConfig, _isFirstInit: boolean, _secrets: undefined): Promise<void> {
-		await this.configUpdated(config, _secrets)
+	public async init(config: ModuleConfig, _isFirstInit: boolean, secrets: ModuleSecrets): Promise<void> {
+		await this.configUpdated(config, secrets)
 	}
 
-	public async configUpdated(config: ModuleConfig, _secrets: undefined): Promise<void> {
+	public async configUpdated(config: ModuleConfig, secrets: ModuleSecrets): Promise<void> {
+		config.oauthClientId ??= ''
+		config.oauthClientSecret ??= ''
+		config.oauthAuthorizationResponse ??= ''
+		config.oauthPendingState ??= ''
+		config.oauthPendingStateExpiresAt ??= 0
+
 		this.config = config
 		this.stopPolling()
 		this.devices = []
@@ -95,12 +99,14 @@ export class SmartThingsInstance extends InstanceBase<ModuleSchema> {
 		}
 		try {
 			if (config.authMode === 'pat') {
-				const tokenProvider = new PatTokenProvider(config.patToken)
+				const tokenProvider = new PatTokenProvider(secrets.patToken)
 				this.api = new SmartThingsApi(tokenProvider)
 			} else {
-				this.initializeOAuth(config)
+				this.log('info', JSON.stringify(config, null, 2))
+				this.initializeOAuth(config, secrets)
 
 				this.updateStatus(InstanceStatus.BadConfig, 'SmartThings OAuth authorization required')
+				return
 			}
 		} catch (error) {
 			const message = error instanceof Error ? error.message : String(error)
@@ -112,16 +118,16 @@ export class SmartThingsInstance extends InstanceBase<ModuleSchema> {
 		try {
 			this.updateStatus(InstanceStatus.Connecting)
 			//Fetch all locations
-			this.locations = await this.api!.getLocations()
+			this.locations = await this.api.getLocations()
 
 			if (config.locationId) {
 				const selectedLocation = this.locations.find((location) => location.locationId === config.locationId)
 				if (!selectedLocation) {
 					throw new Error('Selected location is not available. Please choose a valid location.')
 				}
-				this.devices = await this.api!.getDevicesByLocation(config.locationId)
+				this.devices = await this.api.getDevicesByLocation(config.locationId)
 			} else {
-				this.devices = await this.api!.getDevices()
+				this.devices = await this.api.getDevices()
 			}
 
 			this.initActions()
@@ -141,28 +147,25 @@ export class SmartThingsInstance extends InstanceBase<ModuleSchema> {
 		}
 	}
 
-	private initializeOAuth(config: ModuleConfig): void {
-		if (!config.oauthClientId.trim()) {
+	private initializeOAuth(config: ModuleConfig, secrets: ModuleSecrets): void {
+		const clientId = config.oauthClientId.trim()
+		const clientSecret = secrets.oauthClientSecret.trim()
+
+		if (!clientId) {
 			throw new Error('SmartThings OAuth Client ID required')
 		}
 
-		if (!config.oauthClientSecret.trim()) {
+		if (!clientSecret) {
 			throw new Error('SmartThings OAuth Client Secret Required')
 		}
 
-		this.oauthClient = new OAuthClient(
-			config.oauthClientId,
-			config.oauthClientSecret,
-			SMARTTHINGS_OAUTH_REDIRECT_URI,
-			SMARTTHINGS_OAUTH_SCOPES,
-		)
+		this.oauthClient = new OAuthClient(clientId, clientSecret, SMARTTHINGS_OAUTH_REDIRECT_URI, SMARTTHINGS_OAUTH_SCOPES)
 
 		this.oauthTokenProvider = new OAuthTokenProvider(this.oauthClient)
 
 		this.oauthManager = new OAuthManager(this.oauthClient, this.oauthTokenProvider)
 
 		this.api = new SmartThingsApi(this.oauthTokenProvider)
-		this.beginOAuthAuthorization()
 	}
 
 	public beginOAuthAuthorization(): URL {
