@@ -48,8 +48,6 @@ export class SmartThingsInstance extends InstanceBase<ModuleSchema> {
 		locationId: '',
 		oauthClientId: '',
 		oauthAuthorizationResponse: '',
-		oauthPendingState: '',
-		oauthPendingStateExpiresAt: 0,
 	}
 
 	public api?: SmartThingsApi
@@ -74,8 +72,6 @@ export class SmartThingsInstance extends InstanceBase<ModuleSchema> {
 	public async configUpdated(config: ModuleConfig, secrets: ModuleSecrets): Promise<void> {
 		config.oauthClientId ??= ''
 		config.oauthAuthorizationResponse ??= ''
-		config.oauthPendingState ??= ''
-		config.oauthPendingStateExpiresAt ??= 0
 
 		this.config = config
 		this.stopPolling()
@@ -99,10 +95,8 @@ export class SmartThingsInstance extends InstanceBase<ModuleSchema> {
 				const authenticated = await this.initializeOAuth(config, secrets)
 
 				if (!authenticated) {
-					const authorizationUrl = this.beginOAuthAuthorization()
+					this.beginOAuthAuthorization()
 					this.updateStatus(InstanceStatus.BadConfig, 'Open the authorization URL shown in the log')
-
-					this.log('info', `Open this URL to authorize SmartThings:\n${authorizationUrl.toString()}`)
 				}
 
 				return
@@ -162,7 +156,7 @@ export class SmartThingsInstance extends InstanceBase<ModuleSchema> {
 
 		this.oauthTokenProvider = new OAuthTokenProvider(this.oauthClient)
 
-		this.oauthManager = new OAuthManager(this.oauthClient, this.oauthTokenProvider)
+		this.oauthManager = new OAuthManager(this.oauthClient, this.oauthTokenProvider, clientSecret)
 
 		this.api = new SmartThingsApi(this.oauthTokenProvider)
 
@@ -174,12 +168,7 @@ export class SmartThingsInstance extends InstanceBase<ModuleSchema> {
 
 		const { code, state } = decodeAuthorizationResponse(authorizationResponse)
 
-		await this.oauthManager.completeAuthorization(
-			code,
-			state,
-			config.oauthPendingState,
-			config.oauthPendingStateExpiresAt,
-		)
+		await this.oauthManager.completeAuthorization(code, state)
 		return true
 	}
 
@@ -189,9 +178,6 @@ export class SmartThingsInstance extends InstanceBase<ModuleSchema> {
 		}
 
 		const pending = this.oauthManager.beginAuthorization()
-
-		this.config.oauthPendingState = pending.state
-		this.config.oauthPendingStateExpiresAt = pending.expiresAt
 
 		this.log('info', `Open this URL to authorize SmartThings:\n${pending.authorizationUrl.toString()}`)
 

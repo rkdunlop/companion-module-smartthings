@@ -10,8 +10,6 @@ export interface ModuleConfig {
 
 	oauthClientId: string
 	oauthAuthorizationResponse: string
-	oauthPendingState: string
-	oauthPendingStateExpiresAt: number
 }
 
 export interface ModuleSecrets {

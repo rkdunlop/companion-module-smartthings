@@ -1,4 +1,4 @@
-import { randomBytes, timingSafeEqual } from 'node:crypto'
+import { createHmac, randomBytes, timingSafeEqual } from 'node:crypto'
 
 import { OAuthClient } from './oauth-client.js'
 import { OAuthTokenProvider } from './oauth-token-provider.js'
@@ -7,7 +7,10 @@ const AUTHORIZATION_TIMEOUT_MS = 10 * 60 * 1000
 
 export interface PendingOAuthAuthorization {
 	authorizationUrl: URL
-	state: string
+}
+
+interface OAuthStatePayload {
+	nonce: string
 	expiresAt: number
 }
 
@@ -15,49 +18,77 @@ export class OAuthManager {
 	public constructor(
 		private readonly oauthClient: OAuthClient,
 		private readonly tokenProvider: OAuthTokenProvider,
+		private readonly stateSigningSecret: string,
 	) {}
 
 	public beginAuthorization(): PendingOAuthAuthorization {
-		const state = randomBytes(32).toString('base64url')
-		const expiresAt = Date.now() + AUTHORIZATION_TIMEOUT_MS
+		const state = this.createSignedState()
 
-		return { authorizationUrl: this.oauthClient.buildAuthorizationUrl(state), state, expiresAt }
+		return { authorizationUrl: this.oauthClient.buildAuthorizationUrl(state) }
 	}
 
-	public async completeAuthorization(
-		code: string,
-		returnedState: string,
-		expectedState: string,
-		expiresAt: number,
-	): Promise<void> {
-		if (Date.now() >= expiresAt) {
-			throw new Error('The SmartThings authorization request has expired.')
-		}
-		this.validateState(returnedState, expectedState)
+	public async completeAuthorization(code: string, returnedState: string): Promise<void> {
+		this.verifySignedState(returnedState)
 
 		const tokens = await this.oauthClient.exchangeAuthorizationCode(code)
 
 		await this.tokenProvider.setTokens(tokens)
 	}
 
-	private validateState(returnedState: string, expectedState: string): void {
-		if (!expectedState) {
-			throw new Error('No SmartThings authorization request is pending.')
+	private createSignedState(): string {
+		const payload: OAuthStatePayload = {
+			nonce: randomBytes(32).toString('base64url'),
+			expiresAt: Date.now() + AUTHORIZATION_TIMEOUT_MS,
 		}
 
-		if (!this.statesMatch(expectedState, returnedState)) {
-			throw new Error('The SmartThings OAuth callback state did not match.')
-		}
+		const encodedPayload = Buffer.from(JSON.stringify(payload), 'utf8').toString('base64url')
+
+		const signature = createHmac('sha256', this.stateSigningSecret).update(encodedPayload).digest('base64url')
+
+		return `${encodedPayload}.${signature}`
 	}
 
-	private statesMatch(expected: string, actual: string): boolean {
-		const expectedBuffer = Buffer.from(expected)
-		const actualBuffer = Buffer.from(actual)
-
-		if (expectedBuffer.length !== actualBuffer.length) {
-			return false
+	private verifySignedState(state: string): OAuthStatePayload {
+		const parts = state.split('.')
+		if (parts.length !== 2) {
+			throw new Error('The SmartThings Oauth callback state is invalid')
 		}
 
-		return timingSafeEqual(expectedBuffer, actualBuffer)
+		const [encodedPayload, returnedSignature] = parts
+		const expectedSignature = createHmac('sha256', this.stateSigningSecret).update(encodedPayload).digest('base64url')
+
+		const expectedBuffer = Buffer.from(expectedSignature)
+		const returnedBuffer = Buffer.from(returnedSignature)
+
+		if (expectedBuffer.length !== returnedBuffer.length || !timingSafeEqual(expectedBuffer, returnedBuffer)) {
+			throw new Error('The SmartThings OAuth callback state signature is invalid.')
+		}
+
+		let parsed: unknown
+
+		try {
+			const json = Buffer.from(encodedPayload, 'base64url').toString('utf8')
+
+			parsed = JSON.parse(json)
+		} catch {
+			throw new Error('The SmartThings OAuth callback state is invalid.')
+		}
+
+		if (
+			typeof parsed !== 'object' ||
+			parsed === null ||
+			!('nonce' in parsed) ||
+			!('expiresAt' in parsed) ||
+			typeof parsed.nonce !== 'string' ||
+			typeof parsed.expiresAt !== 'number'
+		) {
+			throw new Error('The SmartThings OAuth callback state is invalid.')
+		}
+
+		if (Date.now() >= parsed.expiresAt) {
+			throw new Error('The SmartThings authorization request has expired. ')
+		}
+
+		return parsed as OAuthStatePayload
 	}
 }
