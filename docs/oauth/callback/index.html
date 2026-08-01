@@ -157,7 +157,7 @@
 					binary += String.fromCharCode(byte)
 				}
 
-				return btoa(binary).replaceAll('+', '-').replaceAll('/', '_').replaceAll(/=+$/u, '')
+				return btoa(binary).replaceAll('+', '-').replaceAll('/', '_').replace(/=+$/u, '')
 			}
 			const query = new URLSearchParams(window.location.search)
 
