@@ -102,7 +102,7 @@ export class SmartThingsInstance extends InstanceBase<ModuleSchema> {
 
 				this.updateStatus(InstanceStatus.BadConfig, 'SmartThings OAuth authorization required')
 			}
-		} catch {
+		} catch (error) {
 			const message = error instanceof Error ? error.message : String(error)
 
 			this.updateStatus(InstanceStatus.BadConfig, message)
@@ -112,16 +112,16 @@ export class SmartThingsInstance extends InstanceBase<ModuleSchema> {
 		try {
 			this.updateStatus(InstanceStatus.Connecting)
 			//Fetch all locations
-			this.locations = await this.api.getLocations()
+			this.locations = await this.api!.getLocations()
 
 			if (config.locationId) {
 				const selectedLocation = this.locations.find((location) => location.locationId === config.locationId)
 				if (!selectedLocation) {
 					throw new Error('Selected location is not available. Please choose a valid location.')
 				}
-				this.devices = await this.api.getDevicesByLocation(config.locationId)
+				this.devices = await this.api!.getDevicesByLocation(config.locationId)
 			} else {
-				this.devices = await this.api.getDevices()
+				this.devices = await this.api!.getDevices()
 			}
 
 			this.initActions()
@@ -162,6 +162,7 @@ export class SmartThingsInstance extends InstanceBase<ModuleSchema> {
 		this.oauthManager = new OAuthManager(this.oauthClient, this.oauthTokenProvider)
 
 		this.api = new SmartThingsApi(this.oauthTokenProvider)
+		this.beginOAuthAuthorization()
 	}
 
 	public beginOAuthAuthorization(): URL {
@@ -173,6 +174,10 @@ export class SmartThingsInstance extends InstanceBase<ModuleSchema> {
 
 		this.config.oauthPendingState = pending.state
 		this.config.oauthPendingStateExpiresAt = pending.expiresAt
+
+		this.log('info', `Open this URL to authorize SmartThings:\n${pending.authorizationUrl.toString()}`)
+
+		this.updateStatus(InstanceStatus.Connecting, 'Waiting for SmartThings authorization')
 
 		return pending.authorizationUrl
 	}
