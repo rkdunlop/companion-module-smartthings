@@ -79,7 +79,6 @@ export class SmartThingsInstance extends InstanceBase<ModuleSchema> {
 
 	public async configUpdated(config: ModuleConfig, secrets: ModuleSecrets): Promise<void> {
 		config.oauthClientId ??= ''
-		config.oauthClientSecret ??= ''
 		config.oauthAuthorizationResponse ??= ''
 		config.oauthPendingState ??= ''
 		config.oauthPendingStateExpiresAt ??= 0
@@ -93,16 +92,16 @@ export class SmartThingsInstance extends InstanceBase<ModuleSchema> {
 		this.rules = []
 		this.deviceStatus.clear()
 
-		if (config.authMode === 'pat' && !config.patToken) {
-			this.updateStatus(InstanceStatus.BadConfig, 'SmartThings PAT required')
-			return
-		}
 		try {
 			if (config.authMode === 'pat') {
+				const patToken = secrets.patToken?.trim()
+				if (!patToken) {
+					this.updateStatus(InstanceStatus.BadConfig, 'SmartThings PAT required')
+					return
+				}
 				const tokenProvider = new PatTokenProvider(secrets.patToken)
 				this.api = new SmartThingsApi(tokenProvider)
 			} else {
-				this.log('info', JSON.stringify(config, null, 2))
 				this.initializeOAuth(config, secrets)
 
 				this.updateStatus(InstanceStatus.BadConfig, 'SmartThings OAuth authorization required')
@@ -148,8 +147,8 @@ export class SmartThingsInstance extends InstanceBase<ModuleSchema> {
 	}
 
 	private initializeOAuth(config: ModuleConfig, secrets: ModuleSecrets): void {
-		const clientId = config.oauthClientId.trim()
-		const clientSecret = secrets.oauthClientSecret.trim()
+		const clientId = config.oauthClientId?.trim()
+		const clientSecret = secrets.oauthClientSecret?.trim()
 
 		if (!clientId) {
 			throw new Error('SmartThings OAuth Client ID required')
