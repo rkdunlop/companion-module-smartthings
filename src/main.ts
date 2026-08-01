@@ -29,15 +29,9 @@ import { OAuthManager } from './auth/oauth-manager.js'
 import { OAuthTokenProvider } from './auth/oauth-token-provider.js'
 import { SMARTTHINGS_OAUTH_REDIRECT_URI } from './auth/constants.js'
 
-const SMARTTHINGS_OAUTH_SCOPES = [
-	'r:locations:*',
-	'r:devices:*',
-	'x:devices:*',
-	'r:scenes:*',
-	'x:scenes:*',
-	'r:rules:*',
-	'w:rules:*',
-]
+import { decodeAuthorizationResponse } from './auth/authorization-response.js'
+
+const SMARTTHINGS_OAUTH_SCOPES = ['r:locations:*', 'r:devices:*', 'x:devices:*', 'r:scenes:*', 'x:scenes:*']
 
 export type ModuleSchema = {
 	config: ModuleConfig
@@ -102,9 +96,15 @@ export class SmartThingsInstance extends InstanceBase<ModuleSchema> {
 				const tokenProvider = new PatTokenProvider(secrets.patToken)
 				this.api = new SmartThingsApi(tokenProvider)
 			} else {
-				this.initializeOAuth(config, secrets)
+				const authenticated = await this.initializeOAuth(config, secrets)
 
-				this.updateStatus(InstanceStatus.BadConfig, 'SmartThings OAuth authorization required')
+				if (!authenticated) {
+					const authorizationUrl = this.beginOAuthAuthorization()
+					this.updateStatus(InstanceStatus.BadConfig, 'Open the authorization URL shown in the log')
+
+					this.log('info', `Open this URL to authorize SmartThings:\n${authorizationUrl.toString()}`)
+				}
+
 				return
 			}
 		} catch (error) {
@@ -146,7 +146,7 @@ export class SmartThingsInstance extends InstanceBase<ModuleSchema> {
 		}
 	}
 
-	private initializeOAuth(config: ModuleConfig, secrets: ModuleSecrets): void {
+	private async initializeOAuth(config: ModuleConfig, secrets: ModuleSecrets): Promise<boolean> {
 		const clientId = config.oauthClientId?.trim()
 		const clientSecret = secrets.oauthClientSecret?.trim()
 
@@ -165,6 +165,22 @@ export class SmartThingsInstance extends InstanceBase<ModuleSchema> {
 		this.oauthManager = new OAuthManager(this.oauthClient, this.oauthTokenProvider)
 
 		this.api = new SmartThingsApi(this.oauthTokenProvider)
+
+		const authorizationResponse = config.oauthAuthorizationResponse?.trim()
+
+		if (!authorizationResponse) {
+			return false
+		}
+
+		const { code, state } = decodeAuthorizationResponse(authorizationResponse)
+
+		await this.oauthManager.completeAuthorization(
+			code,
+			state,
+			config.oauthPendingState,
+			config.oauthPendingStateExpiresAt,
+		)
+		return true
 	}
 
 	public beginOAuthAuthorization(): URL {
