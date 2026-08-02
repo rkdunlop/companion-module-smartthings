@@ -49,6 +49,8 @@ export class SmartThingsInstance extends InstanceBase<ModuleSchema> {
 		locationId: '',
 		oauthClientId: '',
 		oauthAuthorizationResponse: '',
+		isOauthAuthenticated: false,
+		isOauthDisconnectAccount: false,
 	}
 
 	public api?: SmartThingsApi
@@ -79,6 +81,8 @@ export class SmartThingsInstance extends InstanceBase<ModuleSchema> {
 	public async configUpdated(config: ModuleConfig, secrets: ModuleSecrets): Promise<void> {
 		config.oauthClientId ??= ''
 		config.oauthAuthorizationResponse ??= ''
+		config.isOauthAuthenticated ??= false
+		config.isOauthDisconnectAccount ??= false
 
 		this.secrets = {
 			patToken: secrets.patToken ?? '',
@@ -87,6 +91,12 @@ export class SmartThingsInstance extends InstanceBase<ModuleSchema> {
 		}
 
 		this.config = config
+
+		if (config.authMode === 'oauth' && config.isOauthDisconnectAccount) {
+			this.disconnectOAuth(config)
+			return
+		}
+
 		this.stopPolling()
 		this.devices = []
 		this.locations = []
@@ -175,6 +185,13 @@ export class SmartThingsInstance extends InstanceBase<ModuleSchema> {
 		const savedTokens = deserializeOAuthTokens(this.secrets.oauthTokens)
 
 		this.config.oauthAuthenticated = savedTokens !== undefined
+		if (!this.config.isOauthAuthenticated) {
+			this.config = {
+				...this.config,
+				isOauthAuthenticated: true,
+			}
+			this.saveConfig(this.config, undefined)
+		}
 
 		this.oauthTokenProvider = new OAuthTokenProvider(this.oauthClient, savedTokens, (tokens) => {
 			this.persistOAuthTokens(tokens)
@@ -390,16 +407,9 @@ export class SmartThingsInstance extends InstanceBase<ModuleSchema> {
 		this.saveConfig(undefined, this.secrets)
 	}
 
-	public disconnectOAuth(): void {
-		this.oauthTokenProvider?.clearTokens()
-
-		this.secrets = {
-			...this.secrets,
-			oauthTokens: '',
-		}
-		this.config.oauthAuthenticated = false
-
+	public disconnectOAuth(config: ModuleConfig): void {
 		this.stopPolling()
+		this.oauthTokenProvider?.clearTokens()
 
 		this.api = undefined
 		this.oauthClient = undefined
@@ -413,6 +423,17 @@ export class SmartThingsInstance extends InstanceBase<ModuleSchema> {
 		this.rules = []
 		this.deviceStatus.clear()
 
+		this.secrets = {
+			...this.secrets,
+			oauthTokens: '',
+		}
+
+		this.config = {
+			...config,
+			isOauthAuthenticated: false,
+			isOauthDisconnectAccount: false,
+			oauthAuthorizationResponse: '',
+		}
 		this.saveConfig(this.config, this.secrets)
 
 		this.updateStatus(

@@ -10,6 +10,8 @@ export interface ModuleConfig {
 
 	oauthClientId: string
 	oauthAuthorizationResponse: string
+	isOauthAuthenticated: boolean
+	isOauthDisconnectAccount: boolean
 }
 
 export interface ModuleSecrets {
@@ -79,6 +81,7 @@ export function GetConfigFields(): SomeCompanionConfigField[] {
 			label: 'Authorization Response',
 			width: 12,
 			default: '',
+			isVisibleExpression: `$(options:authMode) == 'oauth && $(options:isOauthAuthenticated) != true`,
 		},
 		{
 			id: 'oauthRedirectURI',
@@ -88,15 +91,15 @@ export function GetConfigFields(): SomeCompanionConfigField[] {
 			width: 12,
 		},
 		{
-			id: 'oauthDisconnectAccount',
+			id: 'isOauthDisconnectAccount',
 			label: 'Disconnect SmartThings Account',
 			type: 'checkbox',
 			default: false,
 			width: 12,
-			isVisibleExpression: `$(options.authMode) == 'oauth' && $(options.oauthAuthenticated)`,
+			isVisibleExpression: `$(options.authMode) == 'oauth' && $(options.isOauthAuthenticated) == true`,
 		},
 		{
-			id: 'oauthAuthenticated',
+			id: 'isOauthAuthenticated',
 			label: 'Is Authenticated',
 			type: 'checkbox',
 			default: false,
