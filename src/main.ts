@@ -174,6 +174,8 @@ export class SmartThingsInstance extends InstanceBase<ModuleSchema> {
 
 		const savedTokens = deserializeOAuthTokens(this.secrets.oauthTokens)
 
+		this.config.oauthAuthenticated = savedTokens !== undefined
+
 		this.oauthTokenProvider = new OAuthTokenProvider(this.oauthClient, savedTokens, (tokens) => {
 			this.persistOAuthTokens(tokens)
 		})
@@ -195,6 +197,7 @@ export class SmartThingsInstance extends InstanceBase<ModuleSchema> {
 		const { code, state } = decodeAuthorizationResponse(authorizationResponse)
 
 		await this.oauthManager.completeAuthorization(code, state)
+		this.config.oauthAuthenticated = true
 
 		this.config = {
 			...this.config,
@@ -385,6 +388,39 @@ export class SmartThingsInstance extends InstanceBase<ModuleSchema> {
 			oauthTokens: serializeOAuthTokens(tokens),
 		}
 		this.saveConfig(undefined, this.secrets)
+	}
+
+	public disconnectOAuth(): void {
+		this.oauthTokenProvider?.clearTokens()
+
+		this.secrets = {
+			...this.secrets,
+			oauthTokens: '',
+		}
+		this.config.oauthAuthenticated = false
+
+		this.stopPolling()
+
+		this.api = undefined
+		this.oauthClient = undefined
+		this.oauthTokenProvider = undefined
+		this.oauthManager = undefined
+
+		this.devices = []
+		this.locations = []
+		this.capabilities.clear()
+		this.discoveredCommands = []
+		this.rules = []
+		this.deviceStatus.clear()
+
+		this.saveConfig(this.config, this.secrets)
+
+		this.updateStatus(
+			InstanceStatus.BadConfig,
+			'SmartThings OAuth disconnected. Save the configuration to authorize again.',
+		)
+
+		this.log('info', 'SmartThings OAuth authorization was removed.')
 	}
 }
 

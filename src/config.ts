@@ -27,6 +27,7 @@ export function GetConfigFields(): SomeCompanionConfigField[] {
 			label: 'SmartThings Development Token',
 			width: 12,
 			default: '',
+			isVisibleExpression: `$(options:authMode) == 'pat'`,
 		},
 		{
 			type: 'dropdown',
@@ -38,6 +39,7 @@ export function GetConfigFields(): SomeCompanionConfigField[] {
 				{ id: 'oauth', label: 'SmartThings account' },
 				{ id: 'pat', label: 'Development PAT' },
 			],
+			disableAutoExpression: true,
 		},
 		{
 			type: 'number',
@@ -83,6 +85,22 @@ export function GetConfigFields(): SomeCompanionConfigField[] {
 			type: 'static-text',
 			label: 'OAuth Redirect URI',
 			value: SMARTTHINGS_OAUTH_REDIRECT_URI,
+			width: 12,
+		},
+		{
+			id: 'oauthDisconnectAccount',
+			label: 'Disconnect SmartThings Account',
+			type: 'checkbox',
+			default: false,
+			width: 12,
+			isVisibleExpression: `$(options.authMode) == 'oauth' && $(options.oauthAuthenticated)`,
+		},
+		{
+			id: 'oauthAuthenticated',
+			label: 'Is Authenticated',
+			type: 'checkbox',
+			default: false,
+			isVisibleExpression: 'false',
 			width: 12,
 		},
 		{
