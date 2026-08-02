@@ -5,7 +5,7 @@ export type TokenUpdateHandler = (tokens: OAuthTokens) => Promise<void> | void
 
 export class OAuthTokenProvider implements TokenProvider {
 	public constructor(
-		private readonly oauthclient: OAuthClient,
+		private readonly oauthClient: OAuthClient,
 		private tokens?: OAuthTokens,
 		private readonly onTokensUpdated?: TokenUpdateHandler,
 	) {}
@@ -16,7 +16,7 @@ export class OAuthTokenProvider implements TokenProvider {
 		}
 
 		if (this.tokens.expiresAt <= Date.now()) {
-			const refreshedToken = await this.oauthclient.refreshAccessToken(this.tokens.refreshToken)
+			const refreshedToken = await this.oauthClient.refreshAccessToken(this.tokens.refreshToken)
 			await this.setTokens(refreshedToken)
 		}
 		return this.tokens.accessToken
