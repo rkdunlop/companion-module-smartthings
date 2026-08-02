@@ -16,8 +16,8 @@ export class OAuthTokenProvider implements TokenProvider {
 		}
 
 		if (this.tokens.expiresAt <= Date.now()) {
-			const refreshedToken = await this.oauthClient.refreshAccessToken(this.tokens.refreshToken)
-			await this.setTokens(refreshedToken)
+			const refreshedTokens = await this.oauthClient.refreshAccessToken(this.tokens.refreshToken)
+			await this.setTokens(refreshedTokens)
 		}
 		return this.tokens.accessToken
 	}

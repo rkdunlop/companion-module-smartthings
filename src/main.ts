@@ -195,6 +195,12 @@ export class SmartThingsInstance extends InstanceBase<ModuleSchema> {
 		const { code, state } = decodeAuthorizationResponse(authorizationResponse)
 
 		await this.oauthManager.completeAuthorization(code, state)
+
+		this.config = {
+			...this.config,
+			oauthAuthorizationResponse: '',
+		}
+		this.saveConfig(this.config, undefined)
 		return true
 	}
 
