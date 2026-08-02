@@ -12,13 +12,12 @@ export class OAuthTokenProvider implements TokenProvider {
 
 	public async getAccessToken(): Promise<string> {
 		if (!this.tokens) {
-			throw Error('NO ACCESS TOKEN')
+			throw Error('SmartThings OAuth authorization has not been completed.')
 		}
 
 		if (this.tokens.expiresAt <= Date.now()) {
-			this.tokens = await this.oauthclient.refreshAccessToken(this.tokens.refreshToken)
-
-			await this.onTokensUpdated?.(this.tokens)
+			const refreshedToken = await this.oauthclient.refreshAccessToken(this.tokens.refreshToken)
+			await this.setTokens(refreshedToken)
 		}
 		return this.tokens.accessToken
 	}

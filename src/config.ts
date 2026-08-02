@@ -16,7 +16,9 @@ export interface ModuleSecrets {
 	[key: string]: string
 	oauthClientSecret: string
 	patToken: string
+	oauthTokens: string
 }
+
 export function GetConfigFields(): SomeCompanionConfigField[] {
 	return [
 		{
@@ -82,6 +84,14 @@ export function GetConfigFields(): SomeCompanionConfigField[] {
 			label: 'OAuth Redirect URI',
 			value: SMARTTHINGS_OAUTH_REDIRECT_URI,
 			width: 12,
+		},
+		{
+			type: 'secret-text',
+			id: 'oauthTokens',
+			label: 'OAuth Tokens',
+			width: 12,
+			default: '',
+			isVisibleExpression: 'false',
 		},
 	]
 }

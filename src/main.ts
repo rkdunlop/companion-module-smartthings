@@ -24,12 +24,13 @@ import { getSwitchState } from './device/index.js'
 import { discoverCommands } from './discovery/commands.js'
 import { PatTokenProvider } from './auth/pat-token-provider.js'
 
-import { OAuthClient } from './auth/oauth-client.js'
+import { OAuthClient, type OAuthTokens } from './auth/oauth-client.js'
 import { OAuthManager } from './auth/oauth-manager.js'
 import { OAuthTokenProvider } from './auth/oauth-token-provider.js'
 import { SMARTTHINGS_OAUTH_REDIRECT_URI } from './auth/constants.js'
 
 import { decodeAuthorizationResponse } from './auth/authorization-response.js'
+import { deserializeOAuthTokens, serializeOAuthTokens } from './auth/token-storage.js'
 
 const SMARTTHINGS_OAUTH_SCOPES = ['r:locations:*', 'r:devices:*', 'x:devices:*', 'r:scenes:*', 'x:scenes:*']
 
@@ -65,6 +66,12 @@ export class SmartThingsInstance extends InstanceBase<ModuleSchema> {
 	private oauthTokenProvider?: OAuthTokenProvider
 	private oauthManager?: OAuthManager
 
+	private secrets: ModuleSecrets = {
+		patToken: '',
+		oauthClientSecret: '',
+		oauthTokens: '',
+	}
+
 	public async init(config: ModuleConfig, _isFirstInit: boolean, secrets: ModuleSecrets): Promise<void> {
 		await this.configUpdated(config, secrets)
 	}
@@ -72,6 +79,12 @@ export class SmartThingsInstance extends InstanceBase<ModuleSchema> {
 	public async configUpdated(config: ModuleConfig, secrets: ModuleSecrets): Promise<void> {
 		config.oauthClientId ??= ''
 		config.oauthAuthorizationResponse ??= ''
+
+		this.secrets = {
+			patToken: secrets.patToken ?? '',
+			oauthClientSecret: secrets.oauthClientSecret ?? '',
+			oauthTokens: secrets.oauthTokens ?? '',
+		}
 
 		this.config = config
 		this.stopPolling()
@@ -159,15 +172,22 @@ export class SmartThingsInstance extends InstanceBase<ModuleSchema> {
 
 		this.oauthClient = new OAuthClient(clientId, clientSecret, SMARTTHINGS_OAUTH_REDIRECT_URI, SMARTTHINGS_OAUTH_SCOPES)
 
-		this.oauthTokenProvider = new OAuthTokenProvider(this.oauthClient)
+		const savedTokens = deserializeOAuthTokens(this.secrets.oauthTokens)
+
+		this.oauthTokenProvider = new OAuthTokenProvider(this.oauthClient, savedTokens, (tokens) => {
+			this.persistOAuthTokens(tokens)
+		})
 
 		this.oauthManager = new OAuthManager(this.oauthClient, this.oauthTokenProvider, clientSecret)
 
 		this.api = new SmartThingsApi(this.oauthTokenProvider)
 
+		if (this.oauthTokenProvider.isAuthenticated()) {
+			return true
+		}
+
 		const authorizationResponse = config.oauthAuthorizationResponse?.trim()
 
-		this.log('info', `Authorization response length: ${config.oauthAuthorizationResponse?.length ?? 0}`)
 		if (!authorizationResponse) {
 			return false
 		}
@@ -351,6 +371,14 @@ export class SmartThingsInstance extends InstanceBase<ModuleSchema> {
 
 	public initPresets(): void {
 		UpdatePresets(this)
+	}
+
+	private persistOAuthTokens(tokens: OAuthTokens): void {
+		this.secrets = {
+			...this.secrets,
+			oauthTokens: serializeOAuthTokens(tokens),
+		}
+		this.saveConfig(undefined, this.secrets)
 	}
 }
 
