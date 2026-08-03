@@ -1,5 +1,4 @@
 import { type SomeCompanionConfigField } from '@companion-module/base'
-import { SMARTTHINGS_OAUTH_REDIRECT_URI } from './auth/constants.js'
 
 export interface ModuleConfig {
 	[key: string]: string | number | boolean
@@ -12,6 +11,7 @@ export interface ModuleConfig {
 	oauthAuthorizationResponse: string
 	isOauthAuthenticated: boolean
 	isOauthDisconnectAccount: boolean
+	oauthRedirectUri: string
 }
 
 export interface ModuleSecrets {
@@ -86,12 +86,20 @@ export function GetConfigFields(): SomeCompanionConfigField[] {
 			isVisibleExpression: `$(options:authMode) == 'oauth' && $(options:isOauthAuthenticated) != true`,
 		},
 		{
-			id: 'oauthRedirectURI',
+			id: 'oauthRedirectUri',
 			type: 'static-text',
 			label: 'OAuth Redirect URI',
-			value: SMARTTHINGS_OAUTH_REDIRECT_URI,
+			value: 'https://rkdunlop.github.io/companion-module-smartthings/oauth/callback/',
 			width: 12,
 			isVisibleExpression: `$(options:authMode) == 'oauth'`,
+		},
+		{
+			id: 'oauthAuthorizationUrl',
+			type: 'static-text',
+			label: 'Authorization URL',
+			value: '',
+			width: 12,
+			isVisibleExpression: `$(options:authMode) == 'oauth' && $(options:isOauthAuthenticated) != true`,
 		},
 		{
 			id: 'isOauthDisconnectAccount',

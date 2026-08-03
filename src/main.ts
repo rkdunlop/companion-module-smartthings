@@ -27,7 +27,6 @@ import { PatTokenProvider } from './auth/pat-token-provider.js'
 import { OAuthClient, type OAuthTokens } from './auth/oauth-client.js'
 import { OAuthManager } from './auth/oauth-manager.js'
 import { OAuthTokenProvider } from './auth/oauth-token-provider.js'
-import { SMARTTHINGS_OAUTH_REDIRECT_URI } from './auth/constants.js'
 
 import { decodeAuthorizationResponse } from './auth/authorization-response.js'
 import { deserializeOAuthTokens, serializeOAuthTokens } from './auth/token-storage.js'
@@ -51,6 +50,7 @@ export class SmartThingsInstance extends InstanceBase<ModuleSchema> {
 		oauthAuthorizationResponse: '',
 		isOauthAuthenticated: false,
 		isOauthDisconnectAccount: false,
+		oauthRedirectUri: 'https://rkdunlop.github.io/companion-module-smartthings/oauth/callback/',
 	}
 
 	public api?: SmartThingsApi
@@ -67,6 +67,7 @@ export class SmartThingsInstance extends InstanceBase<ModuleSchema> {
 	private oauthClient?: OAuthClient
 	private oauthTokenProvider?: OAuthTokenProvider
 	private oauthManager?: OAuthManager
+	private authorizationUrl = ''
 
 	private secrets: ModuleSecrets = {
 		patToken: '',
@@ -171,6 +172,7 @@ export class SmartThingsInstance extends InstanceBase<ModuleSchema> {
 	private async initializeOAuth(config: ModuleConfig, secrets: ModuleSecrets): Promise<boolean> {
 		const clientId = config.oauthClientId?.trim()
 		const clientSecret = secrets.oauthClientSecret?.trim()
+		const redirectUri = config.oauthRedirectUri.trim()
 
 		if (!clientId) {
 			throw new Error('SmartThings OAuth Client ID required')
@@ -180,7 +182,11 @@ export class SmartThingsInstance extends InstanceBase<ModuleSchema> {
 			throw new Error('SmartThings OAuth Client Secret Required')
 		}
 
-		this.oauthClient = new OAuthClient(clientId, clientSecret, SMARTTHINGS_OAUTH_REDIRECT_URI, SMARTTHINGS_OAUTH_SCOPES)
+		if (!redirectUri) {
+			throw new Error('SmartThings OAuth redirect URI Required')
+		}
+
+		this.oauthClient = new OAuthClient(clientId, clientSecret, redirectUri, SMARTTHINGS_OAUTH_SCOPES)
 
 		const savedTokens = deserializeOAuthTokens(this.secrets.oauthTokens)
 
@@ -215,7 +221,6 @@ export class SmartThingsInstance extends InstanceBase<ModuleSchema> {
 		const { code, state } = decodeAuthorizationResponse(authorizationResponse)
 
 		await this.oauthManager.completeAuthorization(code, state)
-		this.config.oauthAuthenticated = true
 
 		this.config = {
 			...this.config,
@@ -234,7 +239,7 @@ export class SmartThingsInstance extends InstanceBase<ModuleSchema> {
 
 		const pending = this.oauthManager.beginAuthorization()
 
-		this.log('info', `Open this URL to authorize SmartThings:\n${pending.authorizationUrl.toString()}`)
+		this.authorizationUrl = pending.authorizationUrl.toString()
 
 		this.updateStatus(InstanceStatus.Connecting, 'Waiting for SmartThings authorization')
 
@@ -266,6 +271,18 @@ export class SmartThingsInstance extends InstanceBase<ModuleSchema> {
 
 	public getConfigFields(): ReturnType<typeof GetConfigFields> {
 		const fields = GetConfigFields()
+		const disconnectField = fields.find((field) => field.id === 'isOauthDisconnectAccount')
+
+		if (disconnectField) {
+			disconnectField.isVisibleExpression =
+				this.config.authMode === 'oauth' && this.config.isOauthAuthenticated ? 'true' : 'false'
+		}
+
+		const authorizationResponseField = fields.find((field) => field.id === 'isOauthAuthenticated')
+		if (authorizationResponseField) {
+			authorizationResponseField.isVisibleExpression =
+				this.config.authMode === 'oauth' && !this.config.isOauthAuthenticated ? 'true' : 'false'
+		}
 		const locationField = fields.find((field) => field.id === 'locationId')
 
 		if (locationField && 'choices' in locationField) {
@@ -287,6 +304,11 @@ export class SmartThingsInstance extends InstanceBase<ModuleSchema> {
 					label: `Previously selected location (${savedLocationId})`,
 				})
 			}
+		}
+
+		const authField = fields.find((field) => field.id === 'oauthAuthorizationUrl')
+		if (authField && authField.type === 'static-text') {
+			authField.value = this.authorizationUrl || 'Save the configuration to generate an authorization URL.'
 		}
 		return fields
 	}
