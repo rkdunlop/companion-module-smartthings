@@ -184,11 +184,12 @@ export class SmartThingsInstance extends InstanceBase<ModuleSchema> {
 
 		const savedTokens = deserializeOAuthTokens(this.secrets.oauthTokens)
 
-		this.config.oauthAuthenticated = savedTokens !== undefined
-		if (!this.config.isOauthAuthenticated) {
+		const isAuthenticated = savedTokens !== undefined
+
+		if (this.config.isOauthAuthenticated !== isAuthenticated) {
 			this.config = {
 				...this.config,
-				isOauthAuthenticated: true,
+				isOauthAuthenticated: isAuthenticated,
 			}
 			this.saveConfig(this.config, undefined)
 		}
@@ -218,6 +219,8 @@ export class SmartThingsInstance extends InstanceBase<ModuleSchema> {
 
 		this.config = {
 			...this.config,
+			isOauthAuthenticated: true,
+			isOauthDisconnectAccount: false,
 			oauthAuthorizationResponse: '',
 		}
 		this.saveConfig(this.config, undefined)

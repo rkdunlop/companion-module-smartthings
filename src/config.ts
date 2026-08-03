@@ -24,14 +24,6 @@ export interface ModuleSecrets {
 export function GetConfigFields(): SomeCompanionConfigField[] {
 	return [
 		{
-			type: 'secret-text',
-			id: 'patToken',
-			label: 'SmartThings Development Token',
-			width: 12,
-			default: '',
-			isVisibleExpression: `$(options:authMode) == 'pat'`,
-		},
-		{
 			type: 'dropdown',
 			id: 'authMode',
 			label: 'Authentication method',
@@ -42,6 +34,14 @@ export function GetConfigFields(): SomeCompanionConfigField[] {
 				{ id: 'pat', label: 'Development PAT' },
 			],
 			disableAutoExpression: true,
+		},
+		{
+			type: 'secret-text',
+			id: 'patToken',
+			label: 'SmartThings Development Token',
+			width: 12,
+			default: '',
+			isVisibleExpression: `$(options:authMode) == 'pat'`,
 		},
 		{
 			type: 'number',
@@ -67,6 +67,7 @@ export function GetConfigFields(): SomeCompanionConfigField[] {
 			label: 'Client ID',
 			width: 12,
 			default: '',
+			isVisibleExpression: `$(options:authMode) == 'oauth'`,
 		},
 		{
 			type: 'secret-text',
@@ -74,6 +75,7 @@ export function GetConfigFields(): SomeCompanionConfigField[] {
 			label: 'Client Secret',
 			width: 12,
 			default: '',
+			isVisibleExpression: `$(options:authMode) == 'oauth'`,
 		},
 		{
 			type: 'textinput',
@@ -81,7 +83,7 @@ export function GetConfigFields(): SomeCompanionConfigField[] {
 			label: 'Authorization Response',
 			width: 12,
 			default: '',
-			isVisibleExpression: `$(options:authMode) == 'oauth && $(options:isOauthAuthenticated) != true`,
+			isVisibleExpression: `$(options:authMode) == 'oauth' && $(options:isOauthAuthenticated) != true`,
 		},
 		{
 			id: 'oauthRedirectURI',
@@ -89,6 +91,7 @@ export function GetConfigFields(): SomeCompanionConfigField[] {
 			label: 'OAuth Redirect URI',
 			value: SMARTTHINGS_OAUTH_REDIRECT_URI,
 			width: 12,
+			isVisibleExpression: `$(options:authMode) == 'oauth'`,
 		},
 		{
 			id: 'isOauthDisconnectAccount',
@@ -96,7 +99,7 @@ export function GetConfigFields(): SomeCompanionConfigField[] {
 			type: 'checkbox',
 			default: false,
 			width: 12,
-			isVisibleExpression: `$(options.authMode) == 'oauth' && $(options.isOauthAuthenticated) == true`,
+			isVisibleExpression: `$(options:authMode) == 'oauth' && $(options:isOauthAuthenticated) == true`,
 		},
 		{
 			id: 'isOauthAuthenticated',
