@@ -82,6 +82,7 @@ export class SmartThingsInstance extends InstanceBase<ModuleSchema> {
 	public async configUpdated(config: ModuleConfig, secrets: ModuleSecrets): Promise<void> {
 		config.oauthClientId ??= ''
 		config.oauthAuthorizationResponse ??= ''
+		config.oauthRedirectUri ??= 'https://rkdunlop.github.io/companion-module-smartthings/oauth/callback/'
 		config.isOauthAuthenticated ??= false
 		config.isOauthDisconnectAccount ??= false
 
@@ -278,7 +279,7 @@ export class SmartThingsInstance extends InstanceBase<ModuleSchema> {
 				this.config.authMode === 'oauth' && this.config.isOauthAuthenticated ? 'true' : 'false'
 		}
 
-		const authorizationResponseField = fields.find((field) => field.id === 'isOauthAuthenticated')
+		const authorizationResponseField = fields.find((field) => field.id === 'oauthAuthorizationResponse')
 		if (authorizationResponseField) {
 			authorizationResponseField.isVisibleExpression =
 				this.config.authMode === 'oauth' && !this.config.isOauthAuthenticated ? 'true' : 'false'
